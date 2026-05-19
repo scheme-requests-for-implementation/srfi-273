@@ -6,12 +6,12 @@ SPDX-License-Identifier: MIT
 -->
   <head>
     <meta charset="utf-8">
-    <title>SRFI ###: Extensions to Data (Type-)Checking</title>
+    <title>SRFI 273: Extensions to Data (Type-)Checking</title>
     <link href="/favicon.png" rel="icon" sizes="192x192" type="image/png">
     <link rel="stylesheet" href="https://srfi.schemers.org/srfi.css" type="text/css">
     <meta name="viewport" content="width=device-width, initial-scale=1"></head>
   <body>
-<h1><a href="https://srfi.schemers.org/"><img class="srfi-logo" src="https://srfi.schemers.org/srfi-logo.svg" alt="SRFI surfboard logo" /></a>###: Extensions to Data (Type-)Checking</h1>
+<h1><a href="https://srfi.schemers.org/"><img class="srfi-logo" src="https://srfi.schemers.org/srfi-logo.svg" alt="SRFI surfboard logo" /></a>273: Extensions to Data (Type-)Checking</h1>
 
 <p>by Artyom Bologov</p>
 
@@ -166,7 +166,7 @@ will not appear in the final SRFI.</p>
   (implementation-specific-ffi-pointer-ref data idx))
 </p>
 
-<h3 id="spec--define-check">(srfi XXX) (define-check name predicate)</h3>
+<h3 id="spec--define-check">(srfi 273) (define-check name predicate)</h3>
 
 <!-- TODO: I doubt any implementation will actually infer types,
   -- and implementing this even for Chicken will be really hard.
@@ -190,11 +190,11 @@ will not appear in the final SRFI.</p>
 (define-check email? string?)
 (define-check positive-integer? (check-and? integer? positive?))
 
-(check-arg email? "srfi-XXX@example.com") ;; terminates normally
+(check-arg email? "srfi-273@example.com") ;; terminates normally
 (check-arg positive-integer? -3) ;; is an error
 </pre>
 
-<h3 id="spec--declare-checked">(srfi XXX) (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
+<h3 id="spec--declare-checked">(srfi 273) (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
 
 <p>
   This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
@@ -234,7 +234,7 @@ will not appear in the final SRFI.</p>
   In other words: nearly unfixable.
 </p>
 
-<h3 id="spec--derive-check">(srfi XXX) (derive-check expression)</h3>
+<h3 id="spec--derive-check">(srfi 273) (derive-check expression)</h3>
 
 <!-- TODO: Better name? -->
 
@@ -354,7 +354,7 @@ will not appear in the final SRFI.</p>
 </p>
 
 <p>
-  Due to optionality, these should be hidden behind an <code>srfi-XXX-syntax-check</code> feature identifier.
+  Due to optionality, these should be hidden behind an <code>srfi-273-syntax-check</code> feature identifier.
 </p>
 
 <p>
@@ -402,14 +402,14 @@ will not appear in the final SRFI.</p>
   However, implementations might turn these into macros for increased optimization and smartness.
 </p>
 
-<h4 id="spec--check-utils--check-or">(srfi XXX) (check-or? predicate<sub>1</sub> predicate ...)</h4>
+<h4 id="spec--check-utils--check-or">(srfi 273) (check-or? predicate<sub>1</sub> predicate ...)</h4>
 
 <p>
   Disjoint / union check, accepting any number of predicates and returning a checking predicate that succeeds if any of them succeeds on the provided data.
   On implementations with types, may be optimized into union type.
 </p>
 
-<h4 id="spec--check-utils--check-and">(srfi XXX) (check-and? predicate<sub>1</sub> predicate ...)</h4>
+<h4 id="spec--check-utils--check-and">(srfi 273) (check-and? predicate<sub>1</sub> predicate ...)</h4>
 
 <p>
   Similar to <code>check-or?</code>, but implements conjoin / intersection logic.
@@ -424,13 +424,13 @@ will not appear in the final SRFI.</p>
 ((check-and? integer? positive?) "hello") ;; => #f
 </pre>
 
-<h4 id="spec--check-utils--check-not">(srfi XXX) (check-not? predicate)</h4>
+<h4 id="spec--check-utils--check-not">(srfi 273) (check-not? predicate)</h4>
 
 <p>
   Return a new predicate that tests whether the provided value is <em>not satisfying</em> the <var>predicate</var>.
 </p>
 
-<h4 id="spec--check-utils--check-eqv">(srfi XXX) (check-eqv? constant)</h4>
+<h4 id="spec--check-utils--check-eqv">(srfi 273) (check-eqv? constant)</h4>
 
 <p>
   Return a new predicate testing the argument for being equal to <var>constant</var>.
@@ -442,7 +442,7 @@ will not appear in the final SRFI.</p>
   In part because they are harder to optimize (<code>-equal?</code>) or useless (<code>eq?</code>.)
 </p>
 
-<h4 id="spec--check-utils--check-memv">(srfi XXX) (check-memv? members ...)</h4>
+<h4 id="spec--check-utils--check-memv">(srfi 273) (check-memv? members ...)</h4>
 
 <p>
   Return a new predicate checking the argument for being one of <var>members</var>.
@@ -453,7 +453,7 @@ will not appear in the final SRFI.</p>
   <a href="#spec--check-eqv-why-not-equal">Additional utils using other equality predicates are beyond this SRFI</a>.
 </p>
 
-<h4 id="spec--check-utils--check-sequence-of">(srfi XXX) (check-list-of? predicate [tail-predicate]), (check-vector-of? predicate)</h4>
+<h4 id="spec--check-utils--check-sequence-of">(srfi 273) (check-list-of? predicate [tail-predicate]), (check-vector-of? predicate)</h4>
 
 <!-- TODO: Introduce a check-collection-of? for custom collections?
   -- Maybe introduce check-container-of? for boxes and the like too? -->
@@ -470,7 +470,7 @@ will not appear in the final SRFI.</p>
   A matching <code>check-bytevector-of?</code> utility for bytevectors is not provided, because bytevectors are unambiguously typed already and only need <code>bytevector?</code>.
 </p>
 
-<h4 id="spec--check-utils--check-pair-of">(srfi XXX) (check-pair-of? car-predicate cdr-predicate)</h4>
+<h4 id="spec--check-utils--check-pair-of">(srfi 273) (check-pair-of? car-predicate cdr-predicate)</h4>
 
 <p>
   Returns a new predicate.
@@ -478,7 +478,7 @@ will not appear in the final SRFI.</p>
   With its <code>car</code> satisfying <var>car-predicate</var> and <code>cdr</code>—<var>cdr-predicate</var>.
 </p>
 
-<h4 id="spec--check-utils--check-procedure-of">(srfi XXX) (check-procedure-of? arg-predicates return-predicates)</h4>
+<h4 id="spec--check-utils--check-procedure-of">(srfi 273) (check-procedure-of? arg-predicates return-predicates)</h4>
 
 <p>
   Returns a new predicate.
@@ -504,7 +504,7 @@ will not appear in the final SRFI.</p>
 ((check-procedure-of (list* real? real? real?) (list boolean?)) &lt;) ;; #t
 </pre>
 
-<h4 id="spec--check-utils--check-any">(srfi XXX) check-any?</h4>
+<h4 id="spec--check-utils--check-any">(srfi 273) check-any?</h4>
 
 <p>
   Predicate that returns <code>#t</code> for any argument value.
