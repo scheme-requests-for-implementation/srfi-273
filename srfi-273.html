@@ -186,9 +186,9 @@ SPDX-License-Identifier: MIT
 </p>
 
 <pre>
-(define-check any? check-any?)
+(define-check any? <a href="#spec--check-utils--check-any">check-any?</a>)
 (define-check email? string?)
-(define-check positive-integer? (check-and? integer? positive?))
+(define-check positive-integer? (<a href="#spec--check-utils--check-and">check-and?</a> integer? positive?))
 
 (check-arg email? "srfi-273@example.com") ;; terminates normally
 (check-arg positive-integer? -3) ;; is an error
@@ -215,7 +215,7 @@ SPDX-License-Identifier: MIT
 
 <pre>
 ;; Declare checks for pre-existing standard functions
-(declare-checked (identity check-any?) => (check-any?))
+(declare-checked (identity <a href="#spec--check-utils--check-any">check-any?</a>) => (<a href="#spec--check-utils--check-any">check-any?</a>))
 
 ;; Beware of using the rest argument with checks, see below
 (declare-checked (+ number? . number?) => (number?))
@@ -294,17 +294,17 @@ SPDX-License-Identifier: MIT
 (derive-check '(numbered-string "a" 1))
 ;; => string?
 (derive-check 'numbered-string)
-;; => (check-procedure-of? (list string?) (list number?))
+;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list string?) (list number?))
 
 (derive-check +) ;; or (derive-check '+)
 ;; Note that rest pattern in check-procedure-of? is not entirely portable
-;; => (check-procedure-of? (list* number? number?) (list number?))
+;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list* number? number?) (list number?))
 
 (derive-check '(let ((a 3)) a))
 ;; integer? or possibly bailout #f due to expression complexity
 
 (derive-check derive-check)
-;; => (check-procedure-of? (list check-any?) (list (check-or? symbol? pair?)))
+;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list <a href="#spec--check-utils--check-any">check-any?</a>) (list (<a href="#spec--check-utils--check-or">check-or?</a> symbol? pair?)))
 </pre>
 
 <p>
