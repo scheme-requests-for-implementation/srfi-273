@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+SPDX-FileCopyrightText: 2026 Artyom Bologov
+SPDX-License-Identifier: MIT
+-->
+  <head>
+    <meta charset="utf-8">
+    <title>SRFI ###: Extensions to Data (Type-)Checking</title>
+    <link href="/favicon.png" rel="icon" sizes="192x192" type="image/png">
+    <link rel="stylesheet" href="https://srfi.schemers.org/srfi.css" type="text/css">
+    <meta name="viewport" content="width=device-width, initial-scale=1"></head>
+  <body>
+<h1><a href="https://srfi.schemers.org/"><img class="srfi-logo" src="https://srfi.schemers.org/srfi-logo.svg" alt="SRFI surfboard logo" /></a>###: Extensions to Data (Type-)Checking</h1>
+
+<p>by Artyom Bologov</p>
+
+<h2 id="status">Status</h2>
+
+<p style="color: red;">For editor's use only.  Please do not edit this section.</p>
+
+<p>??? the draft/final/withdrawn status of the SRFI, information on how
+to subscribe to its mailing list, and important dates in its history.
+The editor will add this section.</p>
+
+<h2 id="toc">Table of contents</h2>
+
+<ol>
+  <li><a href="#abstract">Abstract</a>
+  <li><a href="#rationale">Rationale</a>
+  <li><a href="#synopsis">Synopsis</a>
+  <li><a href="#specification">Specification</a>
+    <ol>
+      <li> <a href="#spec--return-value">Return value checking: (lambda-checked args [=&gt; predicate] body...), (case-lambda-checked ((args [=&gt; predicate] ...) body ...) ...), and (define-checked (name args ...) [=&gt; predicate] body ...)</a>
+      <li> <a href="#spec--check-impl">auxiliary syntax (check-impl? datum)</a>
+      <li> <a href="#spec--define-check">(define-check name predicate)</a>
+      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name args ...) [=&gt; predicate])</a>
+      <li> <a href="#spec--derive-check">(derive-check expression)</a>
+      <li> <a href="#spec--syntax-rules">check? and check-impl? in syntax-rules (optional)</a>
+      <li> <a href="#spec--check-utils">Checking utilities</a>
+    </ol>
+  </li>
+  <li> <a href="#implementation">Implementation</a>
+  </li>
+  <li> <a href="#acknowledgements">Acknowledgements</a>
+  <li> <a href="#copyright">Copyright</a>
+</ol>
+
+<h2 id="abstract">Abstract</h2>
+
+<p>
+  Original SRFI 253 established a basis for type-checked (or otherwise checked) data handling.
+  But it lacked some quality of life features.
+  This SRFI extends SRFI 253 to match the existing implementation practice and common sense.
+  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- / post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; type-matching syntax <a href="#spec--syntax-rules"><code>check?</code> and <code>check-impl?</code></a> in <code>syntax-rules</code>, and some checking utilities.
+</p>
+
+<h2 id="issues">Issues</h2>
+
+<p>??? Optional section that may point out things to be resolved.  This
+will not appear in the final SRFI.</p>
+
+<h2 id="rationale">Rationale</h2>
+
+<p>
+  SRFI 253 was good in establishing a fundamental set of data checking primitives.
+  It enabled portable strongly typed programming on multiple implementations.
+  However, there was some incompleteness and mismatch with implementation practice in it.
+  In particular:
+</p>
+
+<ul>
+  <li> <code>define-checked</code> and the like did not allow return value checking. This meant that compiled procedure lacked important metadata useful for optimization.
+  <li> Implementations’ primitives to pre- / post-declare checks for an entity were not included in SRFI 253, despite being part of prior art.
+  <li> In general, some implementation practice / APIs were woefully ignored.
+  <li> Little attention was paid to compile-type checking, despite that being a major point for compiled Schemes, like PreScheme or CRUNCH.
+  <li> SRFI 253 focused on individual type-specific predicates, but lacked more general and composable notions, like union and intersection checks / types. While not many implementations have such involved types, supporting these can make programs faster and more correct on the supporting implementations.
+</ul>
+
+<p>
+  This SRFI extends SRFI 253 based on additional exposure to type systems in languages like Common Lisp, TypeScript, and Haskell.
+  It closes the gaps left by SRFI 253, two years after its publication.
+  Hopefully, there won’t be a need for a third SRFI in this series.
+</p>
+
+<h2 id="synopsis">Synopsis</h2>
+
+<p>
+  This SRFI extends SRFI 253 to match the practice / behavior of many implementations.
+  And to add quality of life features that are not present in implementations but are nonetheless a logical extension of SRFI 253 ethos.
+  Thus it makes Scheme code with 253’s primitives to be even more optimizable, correct, and compliant.
+  Backwards-compatibility with SRFI 253 is an explicit priority, so all code written with SRFI 253 continues to work in implementations including this SRFI.
+  Some of the features in this SRFI are beyond the existing practice, and are marked as optional.
+  These are hidden behind <code>cond-expand</code> features for portability.
+</p>
+
+<p>
+  Included features (painfully missing from SRFI 253) are:
+</p>
+
+<ul>
+  <li> Return value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available,) and <code>define-checked</code> in procedure case.
+  <li> Check aliasing/definition with <code>define-check</code>.
+  <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
+  <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expression might be as complex as necessary, but there are no guarantees for check inference succeeding.
+  <li> Utilities for check composition, like
+    <ul>
+      <li> <code>check-or?</code> for union checks/types,
+      <li> <code>check-and?</code> for intersection checks/types,
+      <li> <code>check-not?</code> for negation checks/types,
+      <li> <code>check-memv?</code> for member types,
+      <li> <code>check-eqv?</code> for constant types,
+      <li> <code>check-list-of?</code>, <code>check-vector-of?</code> for sequences with checked elements,
+      <li> <code>check-pair-of?</code> for pairs with checked car/cdr,
+      <li> <code>check-procedure-of?</code> for checking procedures against argument / return checks,
+      <li> and <code>check-any?</code> to accept any value.
+    </ul>
+  <li> (Optional) typed / checked <code>syntax-rules</code> extension with <code>(check? predicate pattern)</code> and <code>(check-impl? datum pattern)</code> match patterns to restrict rule matching to arguments of a certain type.
+</ul>
+
+<h2 id="specification">Specification</h2>
+
+<h3 id="spec--return-value">Return value(s) checking: (srfi 253) (lambda-checked args [=&gt; (predicate ...)] body...), (case-lambda-checked (args [=&gt; (predicate ...)] body ...) ...), and (define-checked (name args ...) [=&gt; (predicate ...)] body ...)</h3>
+
+<p>
+  Original SRFI 253 included a way to specify argument checks for procedures via <code>lambda-checked</code> and the like.
+  However, what was missing was return value checking.
+  Most implementations supporting type annotations also support return type checks.
+  SRFI 253 not mentioning these and leaving return value checking to
+  <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--values-checked">values-checked</a> form
+  was an under-specification.
+  Thus this addition.
+</p>
+
+<p>
+  Implementations supporting this SRFI must support return value checking via a <code>=&gt;</code> operator in procedure-creating checking forms.
+  <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available,) and <code>define-checked</code> procedure form, in particular.
+  This operator should be followed by a parenthesized list of predicates checking the return value(s).
+  (Note that parentheses are not optional, like in
+  <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--values-checked">SRFI-253 value-checked</a>.)
+  It is an error if any of these predicates check returns false.
+</p>
+
+<p>
+  Use of <code>=&gt;</code> for this might be seen as an unnecessary overload of an already overused symbol.
+  But this is the most minimal and recognizable choice of an operator.
+  It is also similar in syntax to e.g. JavaScript arrow functions.
+</p>
+
+<h3 id="spec--check-impl">auxiliary syntax (check-impl? datum)</h3>
+
+<p>
+  This form, when used in either of SRFI 253 or this SRFI primitives, passes the <var>datum</var> to the implementation unaltered.
+  The form itself is discarded as a non-predicate.
+  This is useful to allow implementation-specific types and types not covered by standard predicates.
+</p>
+
+<p>
+  <code>check-impl?</code> is not guaranteed to work in <code>check-arg</code>, because <code>check-arg</code> might be implemented as a procedure.
+  <code>check-impl?</code> should be avoided in this case.
+</p>
+
+<p>
+(values-checked ((check-impl? uint)) -1) ;; it is an error
+(define-checked (ref (data (check-impl? pointer)) (idx integer?))
+  (implementation-specific-ffi-pointer-ref data idx))
+</p>
+
+<h3 id="spec--define-check">(srfi XXX) (define-check name predicate)</h3>
+
+<!-- TODO: I doubt any implementation will actually infer types,
+  -- and implementing this even for Chicken will be really hard.
+  -- Is that worth the hustle?
+  -- Wait, Kawa can kinda infer types! -->
+
+<p>
+  This form defines a new <var>name</var>-d checking predicate based on the provided <var>predicate</var> (possibly evaluated.)
+  In the simplest implementation form, it might be a mere <code>define</code> aliasing a <var>predicate</var> value to <var>name</var>.
+  In a more complex type-based implementation, it may define a new type derived from <var>predicate</var>-matching type, whenever derivable.
+</p>
+
+<p>
+  Implementations—especially compiled and/or statically typed—may require <code>define-check</code> to happen in a separate module from its first use.
+  This is to make static type inference easier.
+  However, implementors must allow intra-module <code>define-check</code>, possibly falling back to dynamic predicate definition.
+</p>
+
+<pre>
+(define-check any? check-any?)
+(define-check email? string?)
+(define-check positive-integer? (check-and? integer? positive?))
+
+(check-arg email? "srfi-XXX@example.com") ;; terminates normally
+(check-arg positive-integer? -3) ;; is an error
+</pre>
+
+<h3 id="spec--declare-checked">(srfi XXX) (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
+
+<p>
+  This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
+  Or argument / return checks for a procedure defined separately.
+  In the case of the procedure check declaration, all of the <var>args</var> should be checks applied to the given positional argument.
+  Return value type checks, introduced by <code>=&gt;</code> symbol, are syntactically optional.
+  They specify the checks for procedure return value(s) when provided.
+</p>
+
+<p>
+  Return value unspecified.
+</p>
+
+<p>
+  It is highly recommended to support check declaration even for symbols from other libraries.
+  To support post-factum type hardening, similar to TypeScript type declaration files.
+</p>
+
+<pre>
+;; Declare checks for pre-existing standard functions
+(declare-checked (identity check-any?) => (check-any?))
+
+;; Beware of using the rest argument with checks, see below
+(declare-checked (+ number? . number?) => (number?))
+
+;; Declare the contract for a function before it is defined
+(declare-checked (numbered-string string? integer?) => (string?))
+(define (numbered-string str idx)
+  (string-append str (number-&gt;string idx)))
+</pre>
+
+<p>
+  <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#implementation--caveat-rest-arg">Much like in the original SRFI 253</a>,
+  it is not recommended to use rest argument check specifiers.
+  Due to implementations unevenly supporting rest specifiers in macros and types.
+  This is an unfortunate limitation that’s not resolvable without extensive cooperation between implementations.
+  In other words: nearly unfixable.
+</p>
+
+<h3 id="spec--derive-check">(srfi XXX) (derive-check expression)</h3>
+
+<!-- TODO: Better name? -->
+
+<!-- TODO: Provide a version of it deriving type for data and not expression?
+  -- Would be nice to not have to do a check-case etch just to get data type.
+  -->
+
+<p>
+  This primitive should return the check matching the <var>expression</var> (implied to be a piece of code,) or false, as an <code>eval</code>-uatable datum (quoted symbol or list.)
+  Possibly inferring the <var>expression</var> type.
+  Implementation may return false for any <var>expression</var>.
+  Including: in all cases.
+  This pretty relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
+</p>
+
+<p>
+  It is not recommended that implementations <code>eval</code> the <var>expression</var> or any of its parts.
+  But, if they do so, they must manage mutable state, lexical/dynamic environment, and other implications of the <var>expression</var> evaluation.
+  So as to avoid surprising the programmer using <code>derive-check</code>.
+</p>
+
+<p>
+  <code>derive-check</code> is probably most useful in <code>syntax-case</code> (and other non-hygienic / procedural) macros.
+  Allowing one to dispatch the behavior based on the type of macro arguments.
+  While <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--check-case">SRFI 253 check-case</a> might be used for simple cases of constant arguments, it’s insufficient for arbitrary forms.
+  Thus <code>derive-check</code>.
+</p>
+
+<p>
+  The behavior of <code>derive-check</code> on certain types needs a further deliberation:
+</p>
+
+<dl>
+  <dt> Literals and primitive data (numbers, strings, characters, booleans, null lists, EOF objects) </dt>
+  <dd> Respective predicate, as a quoted symbol. Some more exact predicates (narrowed number types and the like) might be returned. </dd>
+  <dt> More complex data (bytevectors, ports, other relatively opaque / boxed / single-purpose structures) </dt>
+  <dd> Respective predicate, as a quoted symbol </dd>
+  <dt> Procedures </dt>
+  <dd> <a href="#spec--check-utils--check-procedure-of"><code>check-procedure-of?</code></a> or <code>procedure?</code>, depending on sophistication of check inference in the implementation </dd>
+  <dt> Vectors </dt>
+  <dd> <a href="#spec--check-utils--check-sequence-of"><code>check-vector-of?</code></a> predicate or <code>vector?</code> for vectors </dd>
+  <dt> Other implementation-specific collections </dt>
+  <dd> Implementation-specific checks </dd>
+  <dt> Lists or quoted symbols </dt>
+  <dd> Type of the code expressed by the argument. <strong>Important: does not return <a href="#spec--check-utils--check-sequence-of"><code>check-list-of?</code></a>!</strong> <code>derive-check</code> is intended for deriving the check for expression representing code, not for the type of expression itself. It just so happens that it returns the respective predicate for more primitive data above, because they usually represent themselves (automatically quoted) in the code. </dd>
+</dl>
+
+<pre>
+;; Any of these might return #f and still be compliant
+(derive-check 3)
+;; => integer? or number? or exact? or exact-integer?
+
+(derive-check '(+ 1 1.333))
+;; => number? or inexact?
+
+;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
+(derive-check '(numbered-string "a" 1))
+;; => string?
+(derive-check 'numbered-string)
+;; => (check-procedure-of? (list string?) (list number?))
+
+(derive-check +) ;; or (derive-check '+)
+;; Note that rest pattern in check-procedure-of? is not entirely portable
+;; => (check-procedure-of? (list* number? number?) (list number?))
+
+(derive-check '(let ((a 3)) a))
+;; integer? or possibly bailout #f due to expression complexity
+
+(derive-check derive-check)
+;; => (check-procedure-of? (list check-any?) (list (check-or? symbol? pair?)))
+</pre>
+
+<p>
+  Implementations—especially compiled and/or statically typed—may restrict check return guarantees to previously compiled / loaded libraries / files and not the current library / file.
+</p>
+
+<h3 id="spec--syntax-rules">check? and check-impl? in syntax-rules (optional)</h3>
+
+<!-- TODO: I really am unsure about this.
+  -- Introduces too much Turing-completeness into syntax-rules.
+  -- I mean, it’s Turing-complete already, but not that!
+  -- Maybe better use the check-impl? above?
+  -- Need to discuss on the mailing list. -->
+
+<p>
+  These extensions allow using special forms <code>check?</code> and <code>check-impl?</code> in <code>syntax-rules</code> patterns.
+</p>
+
+<h4 id="spec--syntax-rules--check">(check? predicate pattern)</h4>
+
+<p>
+  For <code>check?</code>, provided <var>predicate</var> should match the part of the expression matching the <var>pattern</var>.
+  In case <var>predicate</var> returns false for a given expression, rule matching is considered unsuccessful.
+  And should proceed to matching other <code>syntax-rules</code> clauses.
+</p>
+
+<p>
+  It is not an error if predicate returns false.
+  While inconsistent with the rest of this SRFI and SRFI 253, this behavior is more useful in type-dispatching macros.
+  Type-guarding can be achieved by providing only one <code>check?</code> rule.
+  Because, in this case, syntax expansion would fail due to lack of matching patterns.
+</p>
+
+<h4 id="spec--syntax-rules--check-impl">(check-impl? datum pattern)</h4>
+
+<p>
+  <code>check-impl?</code> is a fallthrough to implementation-specific type/predicate checking.
+  <var>datum</var> can be anything the implementation considers a valid check.
+  In case the check of the <var>pattern</var>-matched expression for <var>datum</var> does not succeed, syntax matching should proceed to matching other clauses.
+  Much like <code>check?</code> pattern.
+</p>
+
+<p>
+  <code>check?</code> and <code>check-impl?</code> are optional extensions.
+  While recommended for implementation, they change the logic of <code>syntax-rules</code> to essentially do arbitrary computation at macro expansion time.
+  This is not realistic in many cases.
+</p>
+
+<p>
+  Due to optionality, these should be hidden behind an <code>srfi-XXX-syntax-check</code> feature identifier.
+</p>
+
+<p>
+  The main motivation for <code>check?</code> is smart behavior for embedded Scheme-s with manual memory management.
+  For example, a simplified version of automatic memory management <code>let/free</code> macro could be defined like this:
+</p>
+
+<pre>
+(define-syntax let/free
+  (syntax-rules ()
+    ((_ () body)
+     (begin body))
+    ;; pointer? is implementation-provided predicate for machine pointer objects
+    ((_ ((symbol (check? pointer? value)) other-bindings ...) body ...)
+     ((lambda (symbol)
+        (dynamic-wind
+          (lambda () #f)
+          (lambda () (let/free (other-bindings ...) body ...))
+          ;; "free" here is an implementation-provided memory freeing form
+          (lambda () (free symbol))))
+      value))
+    ((_ ((symbol value) other-bindings ...) body ...)
+     ((lambda (symbol)
+        (let/free (other-bindings ...) body ...))
+      value))))
+</pre>
+
+<p>
+  The motivation of <code>check-impl?</code> is that many implementations provide type specifiers beyond what SRFI 253 covers.
+  Such as pointer types and container types.
+  It is not realistic to map all the implementation types to predicates.
+  In part because some types might not have matching predicates.
+  <code>check-impl?</code> allows to pass implementation-specific type specifier (or something else altogether) without the need for predicate matching.
+</p>
+
+<h3 id="spec--check-utils">Checking utilities</h3>
+
+<p>
+  This is a grab-bag of useful utilities, inspired by functional combinators and TypeScript + Common Lisp types.
+  Implementations might provide more utilities, in particular for typed sequences and other container / collection types.
+</p>
+
+<p>
+  In the simplest form, all of these are procedures.
+  However, implementations might turn these into macros for increased optimization and smartness.
+</p>
+
+<h4 id="spec--check-utils--check-or">(srfi XXX) (check-or? predicate<sub>1</sub> predicate ...)</h4>
+
+<p>
+  Disjoint / union check, accepting any number of predicates and returning a checking predicate that succeeds if any of them succeeds on the provided data.
+  On implementations with types, may be optimized into union type.
+</p>
+
+<h4 id="spec--check-utils--check-and">(srfi XXX) (check-and? predicate<sub>1</sub> predicate ...)</h4>
+
+<p>
+  Similar to <code>check-or?</code>, but implements conjoin / intersection logic.
+  Returns a new predicate that succeeds if all of the provided predicates succeeds on the provided data.
+  May be optimized into an intersection type.
+</p>
+
+<pre>
+((check-and? integer? positive?) 3) ;; => #t
+((check-and? integer? positive?) -3) ;; => #f
+((check-and? integer? positive?) 4.3) ;; => #f
+((check-and? integer? positive?) "hello") ;; => #f
+</pre>
+
+<h4 id="spec--check-utils--check-not">(srfi XXX) (check-not? predicate)</h4>
+
+<p>
+  Return a new predicate that tests whether the provided value is <em>not satisfying</em> the <var>predicate</var>.
+</p>
+
+<h4 id="spec--check-utils--check-eqv">(srfi XXX) (check-eqv? constant)</h4>
+
+<p>
+  Return a new predicate testing the argument for being equal to <var>constant</var>.
+  Compared with <code>eqv?</code>, like in <code>case</code>.
+</p>
+
+<p id="spec--check-eqv-why-not-equal">
+  Additional utils using other equality predicates are beyond this SRFI.
+  In part because they are harder to optimize (<code>-equal?</code>) or useless (<code>eq?</code>.)
+</p>
+
+<h4 id="spec--check-utils--check-memv">(srfi XXX) (check-memv? members ...)</h4>
+
+<p>
+  Return a new predicate checking the argument for being one of <var>members</var>.
+  Compared with <code>eqv?</code>, like in <code>case</code> and <code>memv</code>.
+</p>
+
+<p>
+  <a href="#spec--check-eqv-why-not-equal">Additional utils using other equality predicates are beyond this SRFI</a>.
+</p>
+
+<h4 id="spec--check-utils--check-sequence-of">(srfi XXX) (check-list-of? predicate [tail-predicate]), (check-vector-of? predicate)</h4>
+
+<!-- TODO: Introduce a check-collection-of? for custom collections?
+  -- Maybe introduce check-container-of? for boxes and the like too? -->
+<!-- TODO: Also specify length in these?-->
+
+<p>
+  Returns a new predicate.
+  This predicate tests a given object for being a list or vector (respectively) with each element satisfying <var>predicate</var>.
+  In case of list with <var>tail-predicate</var>, check list tail too.
+  On implementations supporting that, may be optimized to e.g. <code>(vector-of TYPE)</code> type.
+</p>
+
+<p>
+  A matching <code>check-bytevector-of?</code> utility for bytevectors is not provided, because bytevectors are unambiguously typed already and only need <code>bytevector?</code>.
+</p>
+
+<h4 id="spec--check-utils--check-pair-of">(srfi XXX) (check-pair-of? car-predicate cdr-predicate)</h4>
+
+<p>
+  Returns a new predicate.
+  This predicate tests a given object for being a cons pair.
+  With its <code>car</code> satisfying <var>car-predicate</var> and <code>cdr</code>—<var>cdr-predicate</var>.
+</p>
+
+<h4 id="spec--check-utils--check-procedure-of">(srfi XXX) (check-procedure-of? arg-predicates return-predicates)</h4>
+
+<p>
+  Returns a new predicate.
+  This predicate tests the provided object for being a procedure with args satisfying <var>arg-predicates</var>.
+  And return values satisfying <var>return-predicates</var>-conforming values.
+  Both <var>arg-predicates</var> and <var>return-predicates</var> are lists of predicate procedures.
+<p>
+
+<p>
+  Notice that this utility lacks a <code>=&gt;</code> auxiliary syntax.
+  This is because <code>check-procedure-of?</code> might be implemented as a procedure and not a macro.
+</p>
+
+<pre>
+;;; These examples might return #f
+;;; if the implementation has different domains / requirements / data for procedure arguments
+
+;; Regular functions with required arguments
+((check-procedure-of (list integer?) (list boolean?)) even?) ;; #t
+;; Rest argument as a single predicate <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#implementation--caveat-rest-arg">(remember the note on rest arg non-portability)</a>
+((check-procedure-of number? (list number?)) +) ;; #t
+;; Rest args following the positional args as dotted tail
+((check-procedure-of (list* real? real? real?) (list boolean?)) &lt;) ;; #t
+</pre>
+
+<h4 id="spec--check-utils--check-any">(srfi XXX) check-any?</h4>
+
+<p>
+  Predicate that returns <code>#t</code> for any argument value.
+  While extremely simple implementation-wise, it is included for completeness and consistency of the utility set.
+  Another benefit is that implementations may be able to optimize it to a top type easily.
+</p>
+
+<h2 id="implementation">Implementation</h2>
+
+<p>
+  Sample implementation to be done.
+</p>
+
+<h2 id="acknowledgements">Acknowledgements</h2>
+
+<p>
+  Thanks to Yukari Hafner for working on <code>trivial-arguments</code> Common Lisp library,
+  where the author of this SRFI have contributed function type inspection,
+  inspiring <a href="#spec--derive-check"><code>derive-check</code></a>.
+</p>
+
+<p>
+  Thanks also to Felix Winkelmann for working on CRUNCH compiler,
+  during the use of which the need for type-checking macros manifested.
+</p>
+
+<h2 id="copyright">Copyright</h2>
+<p>&copy; 2026 Artyom Bologov.</p>
+
+<p>
+  Permission is hereby granted, free of charge, to any person
+  obtaining a copy of this software and associated documentation files
+  (the "Software"), to deal in the Software without restriction,
+  including without limitation the rights to use, copy, modify, merge,
+  publish, distribute, sublicense, and/or sell copies of the Software,
+  and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:</p>
+
+<p>
+  The above copyright notice and this permission notice (including the
+  next paragraph) shall be included in all copies or substantial
+  portions of the Software.</p>
+
+<p>
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.</p>
+
+  <hr>
+  <address>Editor: <a href="mailto:srfi-editors+at+srfi+dot+schemers+dot+org">Arthur A. Gleckler</a></address></body></html>
