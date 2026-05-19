@@ -49,10 +49,10 @@ The editor will add this section.</p>
 <h2 id="abstract">Abstract</h2>
 
 <p>
-  Original SRFI 253 established a basis for type-checked (or otherwise checked) data handling.
-  But it lacked some quality of life features.
-  This SRFI extends SRFI 253 to match the existing implementation practice and common sense.
-  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- / post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; type-matching syntax <a href="#spec--syntax-rules"><code>check?</code> and <code>check-impl?</code></a> in <code>syntax-rules</code>, and some checking utilities.
+  The original SRFI 253 established a basis for type-checked (or otherwise checked) data handling.
+  But it lacked some quality-of-life features.
+  This SRFI extends SRFI 253 to match existing implementation practice and common sense.
+  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- and post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; the <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; type-matching syntax <a href="#spec--syntax-rules"><code>check?</code> and <code>check-impl?</code></a> in <code>syntax-rules</code>, and some checking utilities.
 </p>
 
 <h2 id="issues">Issues</h2>
@@ -63,15 +63,15 @@ The editor will add this section.</p>
 <h2 id="rationale">Rationale</h2>
 
 <p>
-  SRFI 253 was good in establishing a fundamental set of data checking primitives.
+  SRFI 253 was good in establishing a fundamental set of data-checking primitives.
   It enabled portable strongly typed programming on multiple implementations.
   However, there was some incompleteness and mismatch with implementation practice in it.
   In particular:
 </p>
 
 <ul>
-  <li> <code>define-checked</code> and the like did not allow return value checking. This meant that compiled procedure lacked important metadata useful for optimization.
-  <li> Implementations’ primitives to pre- / post-declare checks for an entity were not included in SRFI 253, despite being part of prior art.
+  <li> <code>define-checked</code> and the like did not allow return-value checking. This meant that compiled procedures lacked important metadata useful for optimization.
+  <li> Implementations’ primitives to pre- and post-declare checks for an entity were not included in SRFI 253, despite being part of prior art.
   <li> In general, some implementation practice / APIs were woefully ignored.
   <li> Little attention was paid to compile-type checking, despite that being a major point for compiled Schemes, like PreScheme or CRUNCH.
   <li> SRFI 253 focused on individual type-specific predicates, but lacked more general and composable notions, like union and intersection checks / types. While not many implementations have such involved types, supporting these can make programs faster and more correct on the supporting implementations.
@@ -86,10 +86,10 @@ The editor will add this section.</p>
 <h2 id="synopsis">Synopsis</h2>
 
 <p>
-  This SRFI extends SRFI 253 to match the practice / behavior of many implementations.
-  And to add quality of life features that are not present in implementations but are nonetheless a logical extension of SRFI 253 ethos.
-  Thus it makes Scheme code with 253’s primitives to be even more optimizable, correct, and compliant.
-  Backwards-compatibility with SRFI 253 is an explicit priority, so all code written with SRFI 253 continues to work in implementations including this SRFI.
+  This SRFI extends SRFI 253 to match the practice / behavior of many implementations,
+  and to add quality-of-life features that are not present in implementations but are nonetheless a logical extension of SRFI 253 ethos.
+  Thus it makes Scheme code with 253’s primitives even more optimizable, correct, and compliant.
+  Backwards compatibility with SRFI 253 is an explicit priority, so all code written with SRFI 253 continues to work in implementations including this SRFI.
   Some of the features in this SRFI are beyond the existing practice, and are marked as optional.
   These are hidden behind <code>cond-expand</code> features for portability.
 </p>
@@ -99,10 +99,10 @@ The editor will add this section.</p>
 </p>
 
 <ul>
-  <li> Return value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available,) and <code>define-checked</code> in procedure case.
+  <li> Return-value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> in procedure case.
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
-  <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expression might be as complex as necessary, but there are no guarantees for check inference succeeding.
+  <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expressions might be as complex as necessary, but there are no guarantees for check inference succeeding.
   <li> Utilities for check composition, like
     <ul>
       <li> <code>check-or?</code> for union checks/types,
@@ -123,22 +123,22 @@ The editor will add this section.</p>
 <h3 id="spec--return-value">Return value(s) checking: (srfi 253) (lambda-checked args [=&gt; (predicate ...)] body...), (case-lambda-checked (args [=&gt; (predicate ...)] body ...) ...), and (define-checked (name args ...) [=&gt; (predicate ...)] body ...)</h3>
 
 <p>
-  Original SRFI 253 included a way to specify argument checks for procedures via <code>lambda-checked</code> and the like.
-  However, what was missing was return value checking.
-  Most implementations supporting type annotations also support return type checks.
-  SRFI 253 not mentioning these and leaving return value checking to
+  SRFI 253 included a way to specify argument checks for procedures via <code>lambda-checked</code> and the like.
+  However, what was missing was return-value checking.
+  Most implementations supporting type annotations also support return-type checks.
+  SRFI 253 not mentioning these and leaving return-value checking to
   <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--values-checked">values-checked</a> form
   was an under-specification.
   Thus this addition.
 </p>
 
 <p>
-  Implementations supporting this SRFI must support return value checking via a <code>=&gt;</code> operator in procedure-creating checking forms.
-  <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available,) and <code>define-checked</code> procedure form, in particular.
+  Implementations supporting this SRFI must support return-value checking via a <code>=&gt;</code> operator in procedure-creating checking forms.
+  <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> procedure form, in particular.
   This operator should be followed by a parenthesized list of predicates checking the return value(s).
   (Note that parentheses are not optional, like in
-  <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--values-checked">SRFI-253 value-checked</a>.)
-  It is an error if any of these predicates check returns false.
+  <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--values-checked">SRFI-253 value-checked</a>).
+  It is an error if any of these predicate checks returns false.
 </p>
 
 <p>
@@ -160,11 +160,11 @@ The editor will add this section.</p>
   <code>check-impl?</code> should be avoided in this case.
 </p>
 
-<p>
-(values-checked ((check-impl? uint)) -1) ;; it is an error
+<pre>
+(values-checked ((check-impl? uint)) -1) ;; is an error
 (define-checked (ref (data (check-impl? pointer)) (idx integer?))
   (implementation-specific-ffi-pointer-ref data idx))
-</p>
+</pre>
 
 <h3 id="spec--define-check">(srfi 273) (define-check name predicate)</h3>
 
@@ -174,13 +174,13 @@ The editor will add this section.</p>
   -- Wait, Kawa can kinda infer types! -->
 
 <p>
-  This form defines a new <var>name</var>-d checking predicate based on the provided <var>predicate</var> (possibly evaluated.)
+  This form defines a new <var>name</var>-d checking predicate based on the provided <var>predicate</var> (possibly evaluated).
   In the simplest implementation form, it might be a mere <code>define</code> aliasing a <var>predicate</var> value to <var>name</var>.
-  In a more complex type-based implementation, it may define a new type derived from <var>predicate</var>-matching type, whenever derivable.
+  In a more complex, type-based implementation, it may define a new type derived from <var>predicate</var>-matching type, whenever derivable.
 </p>
 
 <p>
-  Implementations—especially compiled and/or statically typed—may require <code>define-check</code> to happen in a separate module from its first use.
+  Implementations — especially compiled and/or statically typed — may require <code>define-check</code> to happen in a separate module from its first use.
   This is to make static type inference easier.
   However, implementors must allow intra-module <code>define-check</code>, possibly falling back to dynamic predicate definition.
 </p>
@@ -205,12 +205,12 @@ The editor will add this section.</p>
 </p>
 
 <p>
-  Return value unspecified.
+  The return value is unspecified.
 </p>
 
 <p>
-  It is highly recommended to support check declaration even for symbols from other libraries.
-  To support post-factum type hardening, similar to TypeScript type declaration files.
+  It is highly recommended that checked declaration be supported even for symbols from other libraries.
+  This supports post-factum type hardening, similar to TypeScript type declaration files.
 </p>
 
 <pre>
@@ -228,10 +228,10 @@ The editor will add this section.</p>
 
 <p>
   <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#implementation--caveat-rest-arg">Much like in the original SRFI 253</a>,
-  it is not recommended to use rest argument check specifiers.
-  Due to implementations unevenly supporting rest specifiers in macros and types.
+  it is not recommended that rest argument check specifiers be used.
+  This is because implementations unevenly support rest specifiers in macros and types.
   This is an unfortunate limitation that’s not resolvable without extensive cooperation between implementations.
-  In other words: nearly unfixable.
+  In other words, it's nearly unfixable.
 </p>
 
 <h3 id="spec--derive-check">(srfi 273) (derive-check expression)</h3>
@@ -243,28 +243,28 @@ The editor will add this section.</p>
   -->
 
 <p>
-  This primitive should return the check matching the <var>expression</var> (implied to be a piece of code,) or false, as an <code>eval</code>-uatable datum (quoted symbol or list.)
-  Possibly inferring the <var>expression</var> type.
-  Implementation may return false for any <var>expression</var>.
-  Including: in all cases.
-  This pretty relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
+  This primitive should return the check matching the <var>expression</var> (implied to be a piece of code), or false, as an <code>eval</code>-uatable datum (quoted symbol or list),
+  possibly inferring the <var>expression</var> type.
+  Implementations may return false for any <var>expression</var>,
+  including in all cases.
+  This relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
 </p>
 
 <p>
   It is not recommended that implementations <code>eval</code> the <var>expression</var> or any of its parts.
-  But, if they do so, they must manage mutable state, lexical/dynamic environment, and other implications of the <var>expression</var> evaluation.
-  So as to avoid surprising the programmer using <code>derive-check</code>.
+  But, if they do so, they must manage mutable state, lexical/dynamic environment, and other implications of <var>expression</var> evaluation
+  so as to avoid surprising the programmer using <code>derive-check</code>.
 </p>
 
 <p>
-  <code>derive-check</code> is probably most useful in <code>syntax-case</code> (and other non-hygienic / procedural) macros.
-  Allowing one to dispatch the behavior based on the type of macro arguments.
+  <code>derive-check</code> is probably most useful in <code>syntax-case</code> (and other non-hygienic / procedural) macros because it
+  allows one to dispatch the behavior based on the type of macro arguments.
   While <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--check-case">SRFI 253 check-case</a> might be used for simple cases of constant arguments, it’s insufficient for arbitrary forms.
   Thus <code>derive-check</code>.
 </p>
 
 <p>
-  The behavior of <code>derive-check</code> on certain types needs a further deliberation:
+  The behavior of <code>derive-check</code> on certain types needs further deliberation:
 </p>
 
 <dl>
@@ -279,7 +279,7 @@ The editor will add this section.</p>
   <dt> Other implementation-specific collections </dt>
   <dd> Implementation-specific checks </dd>
   <dt> Lists or quoted symbols </dt>
-  <dd> Type of the code expressed by the argument. <strong>Important: does not return <a href="#spec--check-utils--check-sequence-of"><code>check-list-of?</code></a>!</strong> <code>derive-check</code> is intended for deriving the check for expression representing code, not for the type of expression itself. It just so happens that it returns the respective predicate for more primitive data above, because they usually represent themselves (automatically quoted) in the code. </dd>
+  <dd> Type of the code expressed by the argument. <strong>Important: does not return <a href="#spec--check-utils--check-sequence-of"><code>check-list-of?</code></a>!</strong> <code>derive-check</code> is intended for deriving the check for expression-representing code, not for the type of expression itself. It just so happens that it returns the respective predicate for more primitive data above, because they usually represent themselves (automatically quoted) in the code. </dd>
 </dl>
 
 <pre>
@@ -334,8 +334,8 @@ The editor will add this section.</p>
 <p>
   It is not an error if predicate returns false.
   While inconsistent with the rest of this SRFI and SRFI 253, this behavior is more useful in type-dispatching macros.
-  Type-guarding can be achieved by providing only one <code>check?</code> rule.
-  Because, in this case, syntax expansion would fail due to lack of matching patterns.
+  Type-guarding can be achieved by providing only one <code>check?</code> rule
+  because, in this case, syntax expansion would fail due to lack of matching patterns.
 </p>
 
 <h4 id="spec--syntax-rules--check-impl">(check-impl? datum pattern)</h4>
@@ -373,7 +373,7 @@ The editor will add this section.</p>
         (dynamic-wind
           (lambda () #f)
           (lambda () (let/free (other-bindings ...) body ...))
-          ;; "free" here is an implementation-provided memory freeing form
+          ;; "free" here is an implementation-provided memory-freeing form
           (lambda () (free symbol))))
       value))
     ((_ ((symbol value) other-bindings ...) body ...)
@@ -383,11 +383,11 @@ The editor will add this section.</p>
 </pre>
 
 <p>
-  The motivation of <code>check-impl?</code> is that many implementations provide type specifiers beyond what SRFI 253 covers.
-  Such as pointer types and container types.
-  It is not realistic to map all the implementation types to predicates.
-  In part because some types might not have matching predicates.
-  <code>check-impl?</code> allows to pass implementation-specific type specifier (or something else altogether) without the need for predicate matching.
+  The motivation of <code>check-impl?</code> is that many implementations provide type specifiers beyond what SRFI 253 covers,
+  such as pointer types and container types.
+  It is not realistic to map all the implementation types to predicates,
+  in part because some types might not have matching predicates.
+  <code>check-impl?</code> allows one to pass an implementation-specific type specifier (or something else altogether) without the need for predicate matching.
 </p>
 
 <h3 id="spec--check-utils">Checking utilities</h3>
@@ -433,20 +433,20 @@ The editor will add this section.</p>
 <h4 id="spec--check-utils--check-eqv">(srfi 273) (check-eqv? constant)</h4>
 
 <p>
-  Return a new predicate testing the argument for being equal to <var>constant</var>.
-  Compared with <code>eqv?</code>, like in <code>case</code>.
+  Return a new predicate testing the argument for being equal to <var>constant</var>,
+  compared with <code>eqv?</code>, like in <code>case</code>.
 </p>
 
 <p id="spec--check-eqv-why-not-equal">
-  Additional utils using other equality predicates are beyond this SRFI.
-  In part because they are harder to optimize (<code>-equal?</code>) or useless (<code>eq?</code>.)
+  Additional utils using other equality predicates are beyond this SRFI,
+  in part because they are harder to optimize (<code>-equal?</code>) or useless (<code>eq?</code>).
 </p>
 
 <h4 id="spec--check-utils--check-memv">(srfi 273) (check-memv? members ...)</h4>
 
 <p>
-  Return a new predicate checking the argument for being one of <var>members</var>.
-  Compared with <code>eqv?</code>, like in <code>case</code> and <code>memv</code>.
+  Return a new predicate checking the argument for being one of <var>members</var>,
+  compared with <code>eqv?</code>, like in <code>case</code> and <code>memv</code>.
 </p>
 
 <p>
@@ -461,9 +461,9 @@ The editor will add this section.</p>
 
 <p>
   Returns a new predicate.
-  This predicate tests a given object for being a list or vector (respectively) with each element satisfying <var>predicate</var>.
-  In case of list with <var>tail-predicate</var>, check list tail too.
-  On implementations supporting that, may be optimized to e.g. <code>(vector-of TYPE)</code> type.
+  This predicate tests a given object for being a list or vector (respectively), with each element satisfying <var>predicate</var>.
+  In case of list with <var>tail-predicate</var>, it checks the list's tail, too.
+  On implementations supporting that, it may be optimized to e.g. <code>(vector-of TYPE)</code> type.
 </p>
 
 <p>
@@ -475,15 +475,15 @@ The editor will add this section.</p>
 <p>
   Returns a new predicate.
   This predicate tests a given object for being a cons pair.
-  With its <code>car</code> satisfying <var>car-predicate</var> and <code>cdr</code>—<var>cdr-predicate</var>.
+  With its <code>car</code> satisfying <var>car-predicate</var> and its <code>cdr</code> <var>cdr-predicate</var>.
 </p>
 
 <h4 id="spec--check-utils--check-procedure-of">(srfi 273) (check-procedure-of? arg-predicates return-predicates)</h4>
 
 <p>
   Returns a new predicate.
-  This predicate tests the provided object for being a procedure with args satisfying <var>arg-predicates</var>.
-  And return values satisfying <var>return-predicates</var>-conforming values.
+  This predicate tests the provided object for being a procedure with args satisfying <var>arg-predicates</var>,
+  and return values satisfying <var>return-predicates</var>-conforming values.
   Both <var>arg-predicates</var> and <var>return-predicates</var> are lists of predicate procedures.
 <p>
 
