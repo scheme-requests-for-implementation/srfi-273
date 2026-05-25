@@ -36,7 +36,6 @@ SPDX-License-Identifier: MIT
       <li> <a href="#spec--define-check">(define-check name predicate)</a>
       <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name args ...) [=&gt; predicate])</a>
       <li> <a href="#spec--derive-check">(derive-check expression)</a>
-      <li> <a href="#spec--syntax-rules">check? and check-impl? in syntax-rules (optional)</a>
       <li> <a href="#spec--check-utils">Checking utilities</a>
     </ol>
   </li>
@@ -52,7 +51,7 @@ SPDX-License-Identifier: MIT
   The original SRFI 253 established a basis for type-checked (or otherwise checked) data handling.
   But it lacked some quality-of-life features.
   This SRFI extends SRFI 253 to match existing implementation practice and common sense.
-  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- and post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; the <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; type-matching syntax <a href="#spec--syntax-rules"><code>check?</code> and <code>check-impl?</code></a> in <code>syntax-rules</code>, and some checking utilities.
+  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- and post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; the <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; and some checking utilities.
 </p>
 
 <h2 id="issues">Issues</h2>
@@ -115,7 +114,6 @@ SPDX-License-Identifier: MIT
       <li> <code>check-procedure-of?</code> for checking procedures against argument / return checks,
       <li> and <code>check-any?</code> to accept any value.
     </ul>
-  <li> (Optional) typed / checked <code>syntax-rules</code> extension with <code>(check? predicate pattern)</code> and <code>(check-impl? datum pattern)</code> match patterns to restrict rule matching to arguments of a certain type.
 </ul>
 
 <h2 id="specification">Specification</h2>
@@ -311,83 +309,10 @@ SPDX-License-Identifier: MIT
   Implementations—especially compiled and/or statically typed—may restrict check return guarantees to previously compiled / loaded libraries / files and not the current library / file.
 </p>
 
-<h3 id="spec--syntax-rules">check? and check-impl? in syntax-rules (optional)</h3>
-
-<!-- TODO: I really am unsure about this.
-  -- Introduces too much Turing-completeness into syntax-rules.
-  -- I mean, it’s Turing-complete already, but not that!
-  -- Maybe better use the check-impl? above?
-  -- Need to discuss on the mailing list. -->
-
 <p>
-  These extensions allow using special forms <code>check?</code> and <code>check-impl?</code> in <code>syntax-rules</code> patterns.
-</p>
-
-<h4 id="spec--syntax-rules--check">(check? predicate pattern)</h4>
-
-<p>
-  For <code>check?</code>, provided <var>predicate</var> should match the part of the expression matching the <var>pattern</var>.
-  In case <var>predicate</var> returns false for a given expression, rule matching is considered unsuccessful.
-  And should proceed to matching other <code>syntax-rules</code> clauses.
-</p>
-
-<p>
-  It is not an error if predicate returns false.
-  While inconsistent with the rest of this SRFI and SRFI 253, this behavior is more useful in type-dispatching macros.
-  Type-guarding can be achieved by providing only one <code>check?</code> rule
-  because, in this case, syntax expansion would fail due to lack of matching patterns.
-</p>
-
-<h4 id="spec--syntax-rules--check-impl">(check-impl? datum pattern)</h4>
-
-<p>
-  <code>check-impl?</code> is a fallthrough to implementation-specific type/predicate checking.
-  <var>datum</var> can be anything the implementation considers a valid check.
-  In case the check of the <var>pattern</var>-matched expression for <var>datum</var> does not succeed, syntax matching should proceed to matching other clauses.
-  Much like <code>check?</code> pattern.
-</p>
-
-<p>
-  <code>check?</code> and <code>check-impl?</code> are optional extensions.
-  While recommended for implementation, they change the logic of <code>syntax-rules</code> to essentially do arbitrary computation at macro expansion time.
-  This is not realistic in many cases.
-</p>
-
-<p>
-  Due to optionality, these should be hidden behind an <code>srfi-273-syntax-check</code> feature identifier.
-</p>
-
-<p>
-  The main motivation for <code>check?</code> is smart behavior for embedded Scheme-s with manual memory management.
-  For example, a simplified version of automatic memory management <code>let/free</code> macro could be defined like this:
-</p>
-
-<pre>
-(define-syntax let/free
-  (syntax-rules ()
-    ((_ () body)
-     (begin body))
-    ;; pointer? is implementation-provided predicate for machine pointer objects
-    ((_ ((symbol (check? pointer? value)) other-bindings ...) body ...)
-     ((lambda (symbol)
-        (dynamic-wind
-          (lambda () #f)
-          (lambda () (let/free (other-bindings ...) body ...))
-          ;; "free" here is an implementation-provided memory-freeing form
-          (lambda () (free symbol))))
-      value))
-    ((_ ((symbol value) other-bindings ...) body ...)
-     ((lambda (symbol)
-        (let/free (other-bindings ...) body ...))
-      value))))
-</pre>
-
-<p>
-  The motivation of <code>check-impl?</code> is that many implementations provide type specifiers beyond what SRFI 253 covers,
-  such as pointer types and container types.
-  It is not realistic to map all the implementation types to predicates,
-  in part because some types might not have matching predicates.
-  <code>check-impl?</code> allows one to pass an implementation-specific type specifier (or something else altogether) without the need for predicate matching.
+  Earlier version of this SRFI included value-checking auxiliary syntax in <code>syntax-rules</code>,
+  but it was removed as overly expansive and not fitting the minimalist spirit of <code>syntax-rules</code>.
+  Using <code>syntax-case</code> and <code>derive-check</code> for macroexpansion-time check fetching is more suitable for this.
 </p>
 
 <h3 id="spec--check-utils">Checking utilities</h3>
