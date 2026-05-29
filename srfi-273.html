@@ -113,6 +113,7 @@ SPDX-License-Identifier: MIT
       <li> <code>check-list-of?</code>, <code>check-vector-of?</code> for sequences with checked elements,
       <li> <code>check-pair-of?</code> for pairs with checked car/cdr,
       <li> <code>check-procedure-of?</code> for checking procedures against argument / return checks,
+      <li> <code>check-record-of?</code> for checking records against their record type structure and fields,
       <li> and <code>check-any?</code> to accept any value.
     </ul>
   <li> (Optional) typed / checked <code>syntax-rules</code> extension with <code>(check? predicate pattern)</code> and <code>(check-impl? datum pattern)</code> match patterns to restrict rule matching to arguments of a certain type.
@@ -503,6 +504,28 @@ SPDX-License-Identifier: MIT
 ;; Rest args following the positional args as dotted tail
 ((check-procedure-of (list* real? real? real?) (list boolean?)) &lt;) ;; #t
 </pre>
+
+<h4 id="spec--check-utils--check-record-of">(srfi 273) (check-record-of? name field-predicates)</h4>
+
+<p>
+  Returns a new predicate.
+  This predicate tests the provided object for being a record of <var>name</var>-d record type
+  (<var>name</var> is a quoted name matching the one provided in <code>define-record-type</code> for a given record)
+  with its fields satisfying the respective predicate in <var>field-predicates</var>, in the order of appearance.
+  <var>field-predicates</var> are a list of predicate procedures.
+</p>
+
+<pre>
+(define-record-type kons
+  (make-kons kar kdr)
+  kons?
+  (kar kons-kar kons-kar-set!)
+  (kdr kons-kdr kons-kdr-set!))
+(define test (make-kons 1 "hello"))
+((check-record-of? 'kons (list integer? string?)) test) ;; => #t
+((check-record-of? 'kons (list string? integer?)) test) ;; => #f
+</pre>
+
 
 <h4 id="spec--check-utils--check-any">(srfi 273) check-any?</h4>
 
