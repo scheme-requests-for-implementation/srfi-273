@@ -157,7 +157,7 @@ SPDX-License-Identifier: MIT
   (implementation-specific-ffi-pointer-ref data idx))
 </pre>
 
-<h3 id="spec--define-check">(srfi 273) (define-check name predicate)</h3>
+<h3 id="spec--define-check">(srfi 273) syntax (define-check name predicate)</h3>
 
 <!-- TODO: I doubt any implementation will actually infer types,
   -- and implementing this even for Chicken will be really hard.
@@ -185,7 +185,7 @@ SPDX-License-Identifier: MIT
 (check-arg positive-integer? -3) ;; is an error
 </pre>
 
-<h3 id="spec--declare-checked">(srfi 273) (declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; (predicate)])</h3>
+<h3 id="spec--declare-checked">(srfi 273) syntax (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
 
 <p>
   This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
@@ -224,13 +224,13 @@ SPDX-License-Identifier: MIT
   Without the need to consult procedure definition in addition to <code>declare-checked</code> signature.
 </p>
 
-<h3 id="spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</h3>
+<h3 id="spec--define-values-checked">(srfi 273) syntax (define-values-checked (vars ...) (checks ...) form)</h3>
 
 <p>
 Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
 Further symbol value modifications may be checked too.
 
-<h3 id="spec--derive-check">(srfi 273) (derive-check expression)</h3>
+<h3 id="spec--derive-check">(srfi 273) procedure (derive-check expression)</h3>
 
 <!-- TODO: Better name? -->
 
