@@ -230,7 +230,7 @@ SPDX-License-Identifier: MIT
 Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
 Further symbol value modifications may be checked too.
 
-<h3 id="spec--derive-check">(srfi 273) procedure (derive-check expression)</h3>
+<h3 id="spec--derive-check">(srfi 273) procedure (derive-check expression environment)</h3>
 
 <!-- TODO: Better name? -->
 
@@ -239,8 +239,9 @@ Further symbol value modifications may be checked too.
   -->
 
 <p>
-  This primitive should return the check matching the <var>expression</var> (implied to be a piece of code), or false, as an <code>eval</code>-uatable datum (quoted symbol or list),
-  possibly inferring the <var>expression</var> type.
+  This primitive should return the check matching the result of <var>expression</var>
+  <code>eval</code>-uation in <var>environment</var> ,
+  as an <code>eval</code>-uatable datum (quoted symbol or list;) or false if such derivation is not possible.
   Implementations may return false for any <var>expression</var>,
   including in all cases.
   This relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
