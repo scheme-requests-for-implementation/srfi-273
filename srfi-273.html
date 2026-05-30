@@ -505,12 +505,12 @@ SPDX-License-Identifier: MIT
 ((check-procedure-of (list* real? real? real?) (list boolean?)) &lt;) ;; #t
 </pre>
 
-<h4 id="spec--check-utils--check-record-of">(srfi 273) (check-record-of? name field-predicates)</h4>
+<h4 id="spec--check-utils--check-record-of">(srfi 273) (check-record-of? record-predicate field-predicates)</h4>
 
 <p>
   Returns a new predicate.
-  This predicate tests the provided object for being a record of <var>name</var>-d record type
-  (<var>name</var> is a quoted name matching the one provided in <code>define-record-type</code> for a given record)
+  This predicate tests the provided object for being a record of <var>record-predicate</var>-satisfying record type
+  (<var>record-predicate</var> is a quoted name of the predicate from <code>define-record-type</code> for a given record)
   with its fields satisfying the respective predicate in <var>field-predicates</var>, in the order of appearance.
   <var>field-predicates</var> are a list of predicate procedures.
 </p>
@@ -522,8 +522,8 @@ SPDX-License-Identifier: MIT
   (kar kons-kar kons-kar-set!)
   (kdr kons-kdr kons-kdr-set!))
 (define test (make-kons 1 "hello"))
-((check-record-of? 'kons (list integer? string?)) test) ;; => #t
-((check-record-of? 'kons (list string? integer?)) test) ;; => #f
+((check-record-of? 'kons? (list integer? string?)) test) ;; => #t
+((check-record-of? 'kons? (list string? integer?)) test) ;; => #f
 </pre>
 
 
