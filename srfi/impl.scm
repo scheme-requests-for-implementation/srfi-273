@@ -68,7 +68,7 @@
          (string->symbol (string-append name "?")))
         (else name))))
 
-   (define (get-arg-checks proc::procedure)
+   (define (get-arg-checks proc :: procedure)
      (case (if proc:name
                (string->symbol proc:name)
                #f)
@@ -121,7 +121,13 @@
                     (rec (cdr types))))
              ((null? types)
               '())
-             (else (get-check types))))))))))
+             (else (get-check types))))))))
+
+   (define (get-procedure-check proc :: procedure)
+     (list 'check-procedure-of
+           (cons 'list (get-arg-checks proc))
+           ;; Kawa does not retain return types???
+           'check-any?))))
 
 (define-syntax define-check
   (syntax-rules ()
