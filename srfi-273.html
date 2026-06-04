@@ -515,7 +515,38 @@ SPDX-License-Identifier: MIT
 <h2 id="implementation">Implementation</h2>
 
 <p>
-  Sample implementation to be done.
+  Find the sample implementation for return value checking in <a href="https://github.com/scheme-requests-for-implementation/srfi-253">SRFI 253 repository</a>.
+  It is also contributed to most existing SRFI 253 implementations
+  (<a href="https://gitlab.com/ThatGeoGuy/srfi-253/-/merge_requests/6">Chicken</a>,
+  Chibi,
+  <a href="https://github.com/shirok/Gauche/pull/1273">Gauche</a>,
+  <a href="https://gitlab.com/kashell/Kawa/-/merge_requests/54">Kawa</a>,), ETA unspecified.
+</p>
+
+<p>
+  As for <code>(srfi 273)</code> APIs, here’s the minimal implementation:
+</p>
+
+<pre>
+(define-syntax define-check
+  (syntax-rules ()
+    ((_ name predicate)
+     (define name predicate))))
+(define (derive-check thing)
+  #f)
+(define-syntax declare-checked
+  (syntax-rules (=>)
+    ((_ name predicate)
+     (when #f #f))
+    ((_ (name . args))
+     (when #f #f))
+    ((_ (name . args) => return)
+     (when #f #f))))
+</pre>
+
+<p>
+  <code>check-*?</code> predicates are trivial to implement, but need a discussion.
+  Thus the implementation is postponed until further drafts.
 </p>
 
 <h2 id="acknowledgements">Acknowledgements</h2>
