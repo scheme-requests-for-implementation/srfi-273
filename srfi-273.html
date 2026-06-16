@@ -36,7 +36,8 @@ SPDX-License-Identifier: MIT
       <li> <a href="#spec--return-value">Return value checking: (lambda-checked args [=&gt; predicate] body...), (case-lambda-checked ((args [=&gt; predicate] ...) body ...) ...), and (define-checked (name args ...) [=&gt; predicate] body ...)</a>
       <li> <a href="#spec--check-impl">auxiliary syntax (check-impl? datum)</a>
       <li> <a href="#spec--define-check">(define-check name predicate)</a>
-      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predicate])</a>
+      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predica
+      <li> <a href="#spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</a>
       <li> <a href="#spec--derive-check">(derive-check expression)</a>
       <li> <a href="#spec--check-patterns">Optimizable check patterns / combinators</a>
     </ol>
@@ -223,6 +224,12 @@ SPDX-License-Identifier: MIT
   Without the need to consult procedure definition in addition to <code>declare-checked</code> signature.
 </p>
 
+<h3 id="spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</h3>
+
+<p>
+Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
+Further symbol value modifications may be checked too.
+
 <h3 id="spec--derive-check">(srfi 273) (derive-check expression)</h3>
 
 <!-- TODO: Better name? -->
@@ -406,6 +413,10 @@ SPDX-License-Identifier: MIT
   (syntax-rules ()
     ((_ name predicate)
      (define name predicate))))
+(define-syntax define-values-checked
+  (syntax-rules ()
+    ((_ (vars ...) (checks ...) form)
+     (define-values (vars ...) form))))
 (define (derive-check thing)
   #f)
 (define-syntax declare-checked
