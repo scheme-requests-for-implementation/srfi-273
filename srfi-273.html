@@ -38,7 +38,7 @@ SPDX-License-Identifier: MIT
       <li> <a href="#spec--define-check">(define-check name predicate)</a>
       <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name args ...) [=&gt; predicate])</a>
       <li> <a href="#spec--derive-check">(derive-check expression)</a>
-      <li> <a href="#spec--check-utils">Checking utilities</a>
+      <li> <a href="#spec--check-patterns">Optimizable check patterns / combinators</a>
     </ol>
   </li>
   <li> <a href="#implementation">Implementation</a>
@@ -103,19 +103,9 @@ SPDX-License-Identifier: MIT
   <li> Return-value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> in procedure case.
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
+  <li> <code>declare-values-checked</code> to match the <code>define-checked</code> and <code>define</code> duality.
   <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expressions might be as complex as necessary, but there are no guarantees for check inference succeeding.
-  <li> Utilities for check composition, like
-    <ul>
-      <li> <code>check-or?</code> for union checks/types,
-      <li> <code>check-and?</code> for intersection checks/types,
-      <li> <code>check-not?</code> for negation checks/types,
-      <li> <code>check-memv?</code> for member types,
-      <li> <code>check-eqv?</code> for constant types,
-      <li> <code>check-list-of?</code>, <code>check-vector-of?</code> for sequences with checked elements,
-      <li> <code>check-pair-of?</code> for pairs with checked car/cdr,
-      <li> <code>check-procedure-of?</code> for checking procedures against argument / return checks,
-      <li> and <code>check-any?</code> to accept any value.
-    </ul>
+  <li> Smarter pattern optimization to enable e.g. union types.
 </ul>
 
 <h2 id="specification">Specification</h2>
@@ -186,9 +176,9 @@ SPDX-License-Identifier: MIT
 </p>
 
 <pre>
-(define-check any? <a href="#spec--check-utils--check-any">check-any?</a>)
+(define-check any? (constantly #t))
 (define-check email? string?)
-(define-check positive-integer? (<a href="#spec--check-utils--check-and">check-and?</a> integer? positive?))
+(define-check positive-integer? (conjoin integer? positive?))
 
 (check-arg email? "srfi-273@example.com") ;; terminates normally
 (check-arg positive-integer? -3) ;; is an error
@@ -215,7 +205,7 @@ SPDX-License-Identifier: MIT
 
 <pre>
 ;; Declare checks for pre-existing standard functions
-(declare-checked (identity <a href="#spec--check-utils--check-any">check-any?</a>) => (<a href="#spec--check-utils--check-any">check-any?</a>))
+(declare-checked (identity (constantly #t)) => ((constantly #t)))
 
 ;; Beware of using the rest argument with checks, see below
 (declare-checked (+ number? . number?) => (number?))
@@ -304,7 +294,7 @@ SPDX-License-Identifier: MIT
 ;; integer? or possibly bailout #f due to expression complexity
 
 (derive-check derive-check)
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list <a href="#spec--check-utils--check-any">check-any?</a>) (list (<a href="#spec--check-utils--check-or">check-or?</a> symbol? pair?)))
+;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list (constantly #t)) (list (disjoin symbol? pair?)))
 </pre>
 
 <p>
@@ -317,126 +307,84 @@ SPDX-License-Identifier: MIT
   Using <code>syntax-case</code> and <code>derive-check</code> for macroexpansion-time check fetching is more suitable for this.
 </p>
 
-<h3 id="spec--check-utils">Checking utilities</h3>
+<h3 id="spec--check-patterns">Optimizable check patterns / combinators</h3>
 
 <p>
-  This is a grab-bag of useful utilities, inspired by functional combinators and TypeScript + Common Lisp types.
-  Implementations might provide more utilities, in particular for typed sequences and other container / collection types.
+  While SRFI 253 established behaviors for primitive/built-in types,
+  it didn’t specify something like union types of sequence types.
+  This is an under-specification.
+  The proposed solution is to optimize the most obvious patterns used for these.
+  Say, as <a href="https://srfi.schemers.org/srfi-235/srfi-235.html">SRFI 235 combinators</a>.
+  Or <a href="https://srfi.schemers.org/srfi-26/srfi-26.html">SRFI 26 pseudo-currying</a>.
 </p>
 
 <p>
-  In the simplest form, all of these are procedures.
-  However, implementations might turn these into macros for increased optimization and smartness.
-</p>
-
-<h4 id="spec--check-utils--check-or">(srfi 273) (check-or? predicate<sub>1</sub> predicate ...)</h4>
-
-<p>
-  Disjoint / union check, accepting any number of predicates and returning a checking predicate that succeeds if any of them succeeds on the provided data.
-  On implementations with types, may be optimized into union type.
-</p>
-
-<h4 id="spec--check-utils--check-and">(srfi 273) (check-and? predicate<sub>1</sub> predicate ...)</h4>
-
-<p>
-  Similar to <code>check-or?</code>, but implements conjoin / intersection logic.
-  Returns a new predicate that succeeds if all of the provided predicates succeeds on the provided data.
-  May be optimized into an intersection type.
+  While all of these are listed here as relying on existing SRFI primitives,
+  code analysis that can prove the equivalence of the combinator used with these
+  can safely optimize these patterns:
 </p>
 
 <pre>
-((check-and? integer? positive?) 3) ;; => #t
-((check-and? integer? positive?) -3) ;; => #f
-((check-and? integer? positive?) 4.3) ;; => #f
-((check-and? integer? positive?) "hello") ;; => #f
+(lambda (x) (and (integer? x) (positive? x)))
+;; === (conjoin integer? positive?)
+(lambda (x) (not (integer? x)))
+;; === (complement integer?)
 </pre>
 
-<h4 id="spec--check-utils--check-not">(srfi 273) (check-not? predicate)</h4>
-
 <p>
-  Return a new predicate that tests whether the provided value is <em>not satisfying</em> the <var>predicate</var>.
+  Note that none of these are required for this SRFI compliance,
+  and will work even in the absence of any special treatment from the implementation.
+  These are combinators working with functions, after all.
 </p>
 
-<h4 id="spec--check-utils--check-eqv">(srfi 273) (check-eqv? constant)</h4>
+<h4 id="spec--check-patterns--disjoin">(srfi 235) (disjoin pred ...)</h4>
 
 <p>
-  Return a new predicate testing the argument for being equal to <var>constant</var>,
-  compared with <code>eqv?</code>, like in <code>case</code>.
+  Effectively a union check/type.
 </p>
 
-<p id="spec--check-eqv-why-not-equal">
-  Additional utils using other equality predicates are beyond this SRFI,
-  in part because they are harder to optimize (<code>-equal?</code>) or useless (<code>eq?</code>).
-</p>
-
-<h4 id="spec--check-utils--check-memv">(srfi 273) (check-memv? members ...)</h4>
+<h4 id="spec--check-patterns--conjoin">(srfi 235) (conjoin pred ...)</h4>
 
 <p>
-  Return a new predicate checking the argument for being one of <var>members</var>,
-  compared with <code>eqv?</code>, like in <code>case</code> and <code>memv</code>.
+  Effectively an intersection check/type.
 </p>
 
+<h4 id="spec--check-patterns--complement">(srfi 235) (complement pred)</h4>
+
 <p>
-  <a href="#spec--check-eqv-why-not-equal">Additional utils using other equality predicates are beyond this SRFI</a>.
+  Not check/type.
 </p>
 
-<h4 id="spec--check-utils--check-sequence-of">(srfi 273) (check-list-of? predicate [tail-predicate]), (check-vector-of? predicate)</h4>
-
-<!-- TODO: Introduce a check-collection-of? for custom collections?
-  -- Maybe introduce check-container-of? for boxes and the like too? -->
-<!-- TODO: Also specify length in these?-->
+<h4 id="spec--check-patterns--member">(srfi 26 + r7rs) (cut memv <> '(items ...)) or (cut memv <> (list items ...))</h4>
 
 <p>
-  Returns a new predicate.
-  This predicate tests a given object for being a list or vector (respectively), with each element satisfying <var>predicate</var>.
-  In case of list with <var>tail-predicate</var>, it checks the list's tail, too.
-  On implementations supporting that, it may be optimized to e.g. <code>(vector-of TYPE)</code> type.
+  Member check/type against constants.
+  <code>memv</code> is picked specifically, as it’s close to implementation-specific type systems,
+  unlike more involved and non-optimizable <code>member</code>.
 </p>
 
+<h4 id="spec--check-patterns--equal">(srfi 26 + r7rs) (cut eq constant)</h4>
+
 <p>
-  A matching <code>check-bytevector-of?</code> utility for bytevectors is not provided, because bytevectors are unambiguously typed already and only need <code>bytevector?</code>.
+  Single-member check/type.
 </p>
 
-<h4 id="spec--check-utils--check-pair-of">(srfi 273) (check-pair-of? car-predicate cdr-predicate)</h4>
+<h4 id="spec--check-patterns--list-of">(srfi 26 + srfi 1) (cut every pred <>)</h4>
 
 <p>
-  Returns a new predicate.
-  This predicate tests a given object for being a cons pair.
-  With its <code>car</code> satisfying <var>car-predicate</var> and its <code>cdr</code> <var>cdr-predicate</var>.
+  List-of check.
 </p>
 
-<h4 id="spec--check-utils--check-procedure-of">(srfi 273) (check-procedure-of? arg-predicates return-predicates)</h4>
+<h4 id="spec--check-patterns--vector-of">(srfi 26 + srfi 43) (cut vector-every pred <>)</h4>
 
 <p>
-  Returns a new predicate.
-  This predicate tests the provided object for being a procedure with args satisfying <var>arg-predicates</var>,
-  and return values satisfying <var>return-predicates</var>-conforming values.
-  Both <var>arg-predicates</var> and <var>return-predicates</var> are lists of predicate procedures.
+  Vector-of check.
 </p>
 
-<p>
-  Notice that this utility lacks a <code>=&gt;</code> auxiliary syntax.
-  This is because <code>check-procedure-of?</code> might be implemented as a procedure and not a macro.
-</p>
-
-<pre>
-;;; These examples might return #f
-;;; if the implementation has different domains / requirements / data for procedure arguments
-
-;; Regular functions with required arguments
-((check-procedure-of (list integer?) (list boolean?)) even?) ;; #t
-;; Rest argument as a single predicate <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#implementation--caveat-rest-arg">(remember the note on rest arg non-portability)</a>
-((check-procedure-of number? (list number?)) +) ;; #t
-;; Rest args following the positional args as dotted tail
-((check-procedure-of (list* real? real? real?) (list boolean?)) &lt;) ;; #t
-</pre>
-
-<h4 id="spec--check-utils--check-any">(srfi 273) check-any?</h4>
+<h4 id="spec--check-patterns--any">(srfi 235) (constantly #t) and (constantly #f)</h4>
 
 <p>
-  Predicate that returns <code>#t</code> for any argument value.
-  While extremely simple implementation-wise, it is included for completeness and consistency of the utility set.
-  Another benefit is that implementations may be able to optimize it to a top type easily.
+  Top/any check/type; and bottom/none check/type respectively.
 </p>
 
 <h2 id="implementation">Implementation</h2>
