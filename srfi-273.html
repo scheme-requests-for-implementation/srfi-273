@@ -246,7 +246,7 @@ Further symbol value modifications may be checked too.
 <p>
   Returns a check the provided <var>datum</var> satisfies, as a quoted symbol or expression.
   Returns <code>#f</code> if the check cannot be derived.
-  The returned value should be <code>eval</code>-uatable in the current <code>(interaction-environment)</code> to get the check procedure that the <var>datum</var> satisfies.
+  The returned value should be <a href="https://standards.scheme.org/r7rs-html5/index.html#eval"><code>eval</code></a>-uatable in the current <a href="https://standards.scheme.org/r7rs-html5/index.html#interaction-environment"><code>(interaction-environment)</code></a> to get the check procedure that the <var>datum</var> satisfies.
   The precision to which the check is derived is not specified.
 </p>
 
@@ -284,7 +284,7 @@ Further symbol value modifications may be checked too.
 
 <p>
   Like in <a href="#spec--check-of">check-of</a>,
-  each expression in either list should be <code>eval</code>-uatable in <code>(interaction-environment)</code>.
+  each expression in either list should be <a href="https://standards.scheme.org/r7rs-html5/index.html#eval"><code>eval</code></a>-uatable in the current <a href="https://standards.scheme.org/r7rs-html5/index.html#interaction-environment"><code>(interaction-environment)</code></a>.
 </p>
 
 <pre>
@@ -322,9 +322,9 @@ Further symbol value modifications may be checked too.
 </p>
 
 <pre>
-(lambda (x) (and (integer? x) (positive? x)))
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#lambda">lambda</a> (x) (<a href="https://standards.scheme.org/r7rs-html5/index.html#and">and</a> (integer? x) (positive? x)))
 ;; === (conjoin integer? positive?)
-(lambda (x) (not (integer? x)))
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#lambda">lambda</a> (x) (<a href="https://standards.scheme.org/r7rs-html5/index.html#not">not</a> (integer? x)))
 ;; === (complement integer?)
 </pre>
 
