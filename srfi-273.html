@@ -36,9 +36,10 @@ SPDX-License-Identifier: MIT
       <li> <a href="#spec--return-value">Return value checking: (lambda-checked args [=&gt; predicate] body...), (case-lambda-checked ((args [=&gt; predicate] ...) body ...) ...), and (define-checked (name args ...) [=&gt; predicate] body ...)</a>
       <li> <a href="#spec--check-impl">auxiliary syntax (check-impl? datum)</a>
       <li> <a href="#spec--define-check">(define-check name predicate)</a>
-      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predica
+      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predicate])</a>
       <li> <a href="#spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</a>
-      <li> <a href="#spec--derive-check">(derive-check expression)</a>
+      <li> <a href="#spec--check-of">(check-of datum)</a>
+      <li> <a href="#spec--procedure-check-of">(procedure-check-of proc)</a>
       <li> <a href="#spec--check-patterns">Optimizable check patterns / combinators</a>
     </ol>
   </li>
@@ -105,7 +106,7 @@ SPDX-License-Identifier: MIT
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
   <li> <code>declare-values-checked</code> to match the <code>define-checked</code> and <code>define</code> duality.
-  <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expressions might be as complex as necessary, but there are no guarantees for check inference succeeding.
+  <li> Primitives to derive a suitable check for a given expression, <code>check-of</code> and <code>procedure-check-of</code>.
   <li> Smarter pattern optimization to enable e.g. union types.
 </ul>
 
@@ -162,7 +163,7 @@ SPDX-License-Identifier: MIT
 <!-- TODO: I doubt any implementation will actually infer types,
   -- and implementing this even for Chicken will be really hard.
   -- Is that worth the hustle?
-  -- Wait, Kawa can kinda infer types! -->
+  -->
 
 <p>
   This form defines a new <var>name</var>-d checking predicate based on the provided <var>predicate</var> (possibly evaluated).
@@ -230,89 +231,68 @@ SPDX-License-Identifier: MIT
 Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
 Further symbol value modifications may be checked too.
 
-<h3 id="spec--derive-check">(srfi 273) procedure (derive-check expression [environment])</h3>
-
-<!-- TODO: Better name? -->
-
-<!-- TODO: Provide a version of it deriving type for data and not expression?
-  -- Would be nice to not have to do a check-case etch just to get data type.
-  -->
+<h3 id="spec--check-of">(srfi 273) procedure (check-of datum)</h3>
 
 <p>
-  This primitive should return the check matching the result of <var>expression</var>
-  <code>eval</code>-uation in <var>environment</var> (defaults to <code>interaction-environment</code>,)
-  as an <code>eval</code>-uatable datum (quoted symbol or list;) or false if such derivation is not possible.
-  Implementations may return false for any <var>expression</var>,
-  including in all cases.
-  This relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
+  Returns a check the provided <var>datum</var> satisfies, as a quoted symbol or expression.
+  Returns <code>#f</code> if the check cannot be derived.
+  The returned value should be <code>eval</code>-uatable in the current <code>(interaction-environment)</code> to get the check procedure that the <var>datum</var> satisfies.
+  The precision to which the check is derived is not specified.
 </p>
 
 <p>
-  It is not recommended that implementations <code>eval</code> the <var>expression</var> or any of its parts.
-  But, if they do so, they must manage mutable state, lexical/dynamic environment, and other implications of <var>expression</var> evaluation
-  so as to avoid surprising the programmer using <code>derive-check</code>.
+  Conceptually similar to <code>type-of</code> and <code>typeof</code> of other languages
+  and type-fetching primitives of some Scheme implementations.
 </p>
-
-<p>
-  <code>derive-check</code> is probably most useful in <code>syntax-case</code> (and other non-hygienic / procedural) macros because it
-  allows one to dispatch the behavior based on the type of macro arguments.
-  While <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--check-case">SRFI 253 check-case</a> might be used for simple cases of constant arguments, it’s insufficient for arbitrary forms.
-  Thus <code>derive-check</code>.
-</p>
-
-<p>
-  The behavior of <code>derive-check</code> on certain types needs further deliberation:
-</p>
-
-<dl>
-  <dt> Literals and primitive data (numbers, strings, characters, booleans, null lists, EOF objects) </dt>
-  <dd> Respective predicate, as a quoted symbol. Some more exact predicates (narrowed number types and the like) might be returned. </dd>
-  <dt> More complex data (bytevectors, ports, other relatively opaque / boxed / single-purpose structures) </dt>
-  <dd> Respective predicate, as a quoted symbol </dd>
-  <dt> Procedures </dt>
-  <dd> <a href="#spec--check-utils--check-procedure-of"><code>check-procedure-of?</code></a> or <code>procedure?</code>, depending on sophistication of check inference in the implementation </dd>
-  <dt> Vectors </dt>
-  <dd> <a href="#spec--check-utils--check-sequence-of"><code>check-vector-of?</code></a> predicate or <code>vector?</code> for vectors </dd>
-  <dt> Other implementation-specific collections </dt>
-  <dd> Implementation-specific checks </dd>
-  <dt> Lists or quoted symbols </dt>
-  <dd> Type of the code expressed by the argument. <strong>Important: does not return <a href="#spec--check-utils--check-sequence-of"><code>check-list-of?</code></a>!</strong> <code>derive-check</code> is intended for deriving the check for expression-representing code, not for the type of expression itself. It just so happens that it returns the respective predicate for more primitive data above, because they usually represent themselves (automatically quoted) in the code. </dd>
-</dl>
 
 <pre>
 ;; Any of these might return #f and still be compliant
-(derive-check 3)
+(check-of 3)
 ;; => integer? or number? or exact? or exact-integer?
-
-(derive-check '(+ 1 1.333))
-;; => number? or inexact?
-
-;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
-(derive-check '(numbered-string "a" 1))
-;; => string?
-(derive-check 'numbered-string)
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list string?) (list number?))
-
-(derive-check +) ;; or (derive-check '+)
-;; Note that rest pattern in check-procedure-of? is not entirely portable
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list* number? number?) (list number?))
-
-(derive-check '(let ((a 3)) a))
-;; integer? or possibly bailout #f due to expression complexity
-
-(derive-check derive-check)
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list (constantly #t)) (list (disjoin symbol? pair?)))
+(define-checked x (cut = 3 <>) 3)
+(check-of x)
+;; => (cut = 3 <>) or number checks as above
 </pre>
 
+<h3 id="spec--procedure-check-of">(srfi 273) procedure (procedure-check-of proc)</h3>
+
 <p>
-  Implementations—especially compiled and/or statically typed—may restrict check return guarantees to previously compiled / loaded libraries / files and not the current library / file.
+  Accepts as procedure (as per <code>procedure?</code>.)
+  Returns two values:
+</p>
+
+<ol>
+  <li> List of checks for arguments of <var>proc</var>.
+    In case the procedure accepts rest arguments, the returned checks are only covering required arguments.
+    Checking for rest / optional argument presence is beyond this SRFI.
+  <li> List of checks for return values of <var>proc</var>.
+</ol>
+
+<p>
+  Either of lists can be <code>#f</code>.
 </p>
 
 <p>
-  Earlier version of this SRFI included value-checking auxiliary syntax in <code>syntax-rules</code>,
-  but it was removed as overly expansive and not fitting the minimalist spirit of <code>syntax-rules</code>.
-  Using <code>syntax-case</code> and <code>derive-check</code> for macroexpansion-time check fetching is more suitable for this.
+  Like in <a href="#spec--check-of">check-of</a>,
+  each expression in either list should be <code>eval</code>-uatable in <code>(interaction-environment)</code>.
 </p>
+
+<pre>
+;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
+(procedure-check-of numbered-string)
+;; => (string? integer?), (string?)
+
+(procedure-check-of +)
+;; Rest argument not included
+;; => (), (number?)
+
+(procedure-check-of eval)
+;; Rest argument is ignored, fetch it elsewhere
+;; => ((constantly #t)), ((constantly #t))
+
+(procedure-check-of procedure-check-of)
+;; (procedure?), ((disjoin boolean? symbol? pair?) (disjoin boolean? symbol? pair?))
+</pre>
 
 <h3 id="spec--check-patterns">Optimizable check patterns / combinators</h3>
 
@@ -418,8 +398,10 @@ Further symbol value modifications may be checked too.
   (syntax-rules ()
     ((_ (vars ...) (checks ...) form)
      (define-values (vars ...) form))))
-(define (derive-check thing)
+(define (check-of datum)
   #f)
+(define (procedure-check-of proc)
+  (values #f #f))
 (define-syntax declare-checked
   (syntax-rules (=>)
     ((_ name predicate)
@@ -440,7 +422,7 @@ Further symbol value modifications may be checked too.
 <p>
   Thanks to Yukari Hafner for working on <code>trivial-arguments</code> Common Lisp library,
   where the author of this SRFI have contributed function type inspection,
-  inspiring <a href="#spec--derive-check"><code>derive-check</code></a>.
+  inspiring <a href="#spec--procedure-check-of">procedure-check-of</a>.
 </p>
 
 <p>
@@ -450,7 +432,9 @@ Further symbol value modifications may be checked too.
 
 <p>
   Thanks to John Cowan and Peter McGoron for the discussion on better
-  <a href="#spec--derive-check"><code>derive-check</code></a> design.
+  <a href="#spec--procedure-check-of">procedure-check-of</a>
+  and <a href="#spec--check-of">check-of</a>
+  (previously <code>derive-check</code>) design.
 </p>
 
 <h2 id="copyright">Copyright</h2>
