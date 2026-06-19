@@ -113,7 +113,8 @@ SPDX-License-Identifier: MIT
   <li> Return-value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> in procedure case.
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
-  <li> <code>declare-values-checked</code> to match the <code>define-checked</code> and <code>define</code> duality.
+  <li> <code>declare-values-checked</code> to match the <code>define-checked</code>
+    and <a href="https://standards.scheme.org/r7rs-html5/index.html#define"><code>define</code></a> duality.
   <li> Primitives to derive a suitable check for a given expression, <code>check-of</code> and <code>procedure-check-of</code>.
   <li> Smarter pattern optimization to enable e.g. union types.
 </ul>
@@ -142,7 +143,8 @@ SPDX-License-Identifier: MIT
 </p>
 
 <p>
-  Use of <code>=&gt;</code> for this might be seen as an unnecessary overload of an already overused symbol.
+  Use of <code>=&gt;</code> for this might be seen as an unnecessary overload of an
+  <a href="https://standards.scheme.org/r7rs-html5/index.html#=%3E">already overused symbol</a>.
   But this is the most minimal and recognizable choice of an operator.
   It is also similar in syntax to e.g. JavaScript arrow functions.
 </p>
@@ -162,7 +164,7 @@ SPDX-License-Identifier: MIT
 
 <pre>
 (values-checked ((check-impl? uint)) -1) ;; is an error
-(define-checked (ref (data (check-impl? pointer)) (idx integer?))
+(define-checked (ref (data (check-impl? pointer)) (idx <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>))
   (implementation-specific-ffi-pointer-ref data idx))
 </pre>
 
@@ -187,8 +189,8 @@ SPDX-License-Identifier: MIT
 
 <pre>
 (define-check any? (constantly #t))
-(define-check email? string?)
-(define-check positive-integer? (conjoin integer? positive?))
+(define-check email? <a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a>)
+(define-check positive-integer? (conjoin <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#positive?">positive?</a>))
 
 (check-arg email? "srfi-273@example.com") ;; terminates normally
 (check-arg positive-integer? -3) ;; is an error
@@ -215,15 +217,15 @@ SPDX-License-Identifier: MIT
 
 <pre>
 ;; Declare checks for pre-existing standard functions
-(declare-checked (identity (x (constantly #t))) => ((constantly #t)))
+(declare-checked (identity (x (constantly #t))) =&gt; ((constantly #t)))
 
 ;; Beware of using the rest argument with checks, see below
-(declare-checked (+ (first number?) . number?) => (number?))
+(declare-checked (<a href="https://standards.scheme.org/r7rs-html5/index.html#+">+</a> (first <a href="https://standards.scheme.org/r7rs-html5/index.html#number?">number?</a>) . number?) =&gt; (number?))
 
 ;; Declare the contract for a function before it is defined
-(declare-checked (numbered-string (str string?) (idx integer?)) => (string?))
+(declare-checked (numbered-string (str <a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a>) (idx <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>)) =&gt; (string?))
 (define (numbered-string str idx)
-  (string-append str (number-&gt;string idx)))
+  (<a href="https://standards.scheme.org/r7rs-html5/index.html#string-append">string-append</a> str (<a href="https://standards.scheme.org/r7rs-html5/index.html#number-%3Estring">number-&gt;string</a> idx)))
 </pre>
 
 <p>
@@ -256,10 +258,10 @@ Further symbol value modifications may be checked too.
 <pre>
 ;; Any of these might return #f and still be compliant
 (check-of 3)
-;; => integer? or number? or exact? or exact-integer?
-(define-checked x (cut = 3 <>) 3)
+;; =&gt; integer? or number? or exact? or exact-integer?
+(define-checked x (<a href="https://srfi.schemers.org/srfi-26/srfi-26.html">cut</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#=">=</a> 3 &lt;&gt;) 3)
 (check-of x)
-;; => (cut = 3 <>) or number checks as above
+;; =&gt; (cut = 3 &lt;&gt;) or number checks as above
 </pre>
 
 <h3 id="spec--procedure-check-of">(srfi 273) procedure (procedure-check-of proc)</h3>
@@ -288,18 +290,18 @@ Further symbol value modifications may be checked too.
 <pre>
 ;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
 (procedure-check-of numbered-string)
-;; => (string? integer?), (string?)
+;; =&gt; (<a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>), (string?)
 
 (procedure-check-of +)
 ;; Rest argument not included
-;; => (), (number?)
+;; =&gt; (), (<a href="https://standards.scheme.org/r7rs-html5/index.html#number?">number?</a>)
 
-(procedure-check-of eval)
+(procedure-check-of <a href="https://standards.scheme.org/r7rs-html5/index.html#eval">eval</a>)
 ;; Rest argument is ignored, fetch it elsewhere
-;; => ((constantly #t)), ((constantly #t))
+;; =&gt; ((constantly #t) (constantly #t)), ((constantly #t))
 
 (procedure-check-of procedure-check-of)
-;; (procedure?), ((disjoin boolean? symbol? pair?) (disjoin boolean? symbol? pair?))
+;; (<a href="https://standards.scheme.org/r7rs-html5/index.html#procedure?">procedure?</a>), ((disjoin <a href="https://standards.scheme.org/r7rs-html5/index.html#boolean?">boolean?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#symbol?">symbol?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#pair?">pair?</a>) (disjoin boolean? symbol? pair?))
 </pre>
 
 <h3 id="spec--check-patterns">Optimizable check patterns / combinators</h3>
@@ -350,7 +352,7 @@ Further symbol value modifications may be checked too.
   Not check/type.
 </p>
 
-<h4 id="spec--check-patterns--member">(srfi 26 + r7rs) (cut memv <> '(items ...)) or (cut memv <> (list items ...))</h4>
+<h4 id="spec--check-patterns--member">(srfi 26 + r7rs) (cut memv &lt;&gt; '(items ...)) or (cut memv &lt;&gt; (list items ...))</h4>
 
 <p>
   Member check/type against constants.
@@ -364,13 +366,13 @@ Further symbol value modifications may be checked too.
   Single-member check/type.
 </p>
 
-<h4 id="spec--check-patterns--list-of">(srfi 26 + srfi 1) (cut every pred <>)</h4>
+<h4 id="spec--check-patterns--list-of">(srfi 26 + srfi 1) (cut every pred &lt;&gt;)</h4>
 
 <p>
   List-of check.
 </p>
 
-<h4 id="spec--check-patterns--vector-of">(srfi 26 + srfi 43) (cut vector-every pred <>)</h4>
+<h4 id="spec--check-patterns--vector-of">(srfi 26 + srfi 43) (cut vector-every pred &lt;&gt;)</h4>
 
 <p>
   Vector-of check.
@@ -398,25 +400,25 @@ Further symbol value modifications may be checked too.
 </p>
 
 <pre>
-(define-syntax define-check
-  (syntax-rules ()
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#define-syntax">define-syntax</a> <a href="#spec--define-check">define-check</a>
+  (<a href="https://standards.scheme.org/r7rs-html5/index.html#syntax-rules">syntax-rules</a> ()
     ((_ name predicate)
-     (define name predicate))))
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#define">define</a> name predicate))))
 (define-syntax define-values-checked
   (syntax-rules ()
     ((_ (vars ...) (checks ...) form)
-     (define-values (vars ...) form))))
-(define (check-of datum)
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#define-values">define-values</a> (vars ...) form))))
+(define (<a href="#spec--check-of">check-of</a> datum)
   #f)
-(define (procedure-check-of proc)
+(define (<a href="#spec--procedure-check-of">procedure-check-of</a> proc)
   (values #f #f))
-(define-syntax declare-checked
-  (syntax-rules (=>)
+(define-syntax <a href="#spec--declare-checked">declare-checked</a>
+  (syntax-rules (=&gt;)
     ((_ name predicate)
-     (when #f #f))
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#when">when</a> #f #f))
     ((_ (name . args))
      (when #f #f))
-    ((_ (name . args) => return)
+    ((_ (name . args) =&gt; return)
      (when #f #f))))
 </pre>
 
