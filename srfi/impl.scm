@@ -32,8 +32,31 @@
     ((_ (vars ...) (checks ...) form)
      (define-values (vars ...) form))))
 
-(define (derive-check thing)
-  #f)
+(define (check-of datum)
+  (cond
+   ((boolean? datum) 'boolean?)
+   ((bytevector? datum) 'bytevector?)
+   ((char? datum) 'char?)
+   ((eof-object? datum) 'eof-object?)
+   ((null? datum) 'null?)
+   ((integer? datum) 'integer?)
+   ((rational? datum) 'rational?)
+   ((real? datum) 'real?)
+   ((complex? datum) 'complex?)
+   ((number? datum) 'number?)
+   ((pair? datum) 'pair?)
+   ((input-port? datum) 'input-port?)
+   ((output-port? datum) 'output-port?)
+   ((port? datum) 'port?)
+   ((procedure? datum) 'procedure?)
+   ((string? datum) 'string?)
+   ((symbol? datum) 'symbol?)
+   ((vector? datum) 'vector?)
+   ((error-object? datum) 'error-object?)
+   (else #f)))
+
+(define (procedure-check-of proc)
+  (values #f #f))
 
 (cond-expand
   (chicken
