@@ -84,7 +84,6 @@ SPDX-License-Identifier: MIT
   <li> <code>define-checked</code> and the like did not allow return-value checking. This meant that compiled procedures lacked important metadata useful for optimization.
   <li> Implementations’ primitives to pre- and post-declare checks for an entity were not included in SRFI 253, despite being part of prior art.
   <li> In general, some implementation practice / APIs were woefully ignored.
-  <li> Little attention was paid to compile-time checking, despite that being a major point for compiled Schemes, like PreScheme or CRUNCH.
   <li> SRFI 253 focused on individual type-specific predicates, but lacked more general and composable notions, like union and intersection checks / types. While not many implementations have such involved types, supporting these can make programs faster and more correct on the supporting implementations.
 </ul>
 
