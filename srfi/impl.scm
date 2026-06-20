@@ -122,7 +122,7 @@
        ((call-with-values)
         '(procedure? procedure?))
        ((format)
-        '((check-or? boolean? string? number? output-port?)))
+        '((disjoin boolean? string? number? output-port?)))
        ((floor/ floor-quotient floor-remainder
                 truncate/ truncate-quotient truncate-remainder
                 quotinent remainder
@@ -211,7 +211,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
@@ -228,22 +227,17 @@
        ((_ name inexact?)       (: name float))
        ((_ name real?)          (: name number))
        ((_ name list?)          (: name list))
-       ((_ name (check-list-of? _)) (: name list))
-       ((_ name (check-list-of? _ _)) (: name list))
        ((_ name null?)          (: name null))
        ((_ name number?)        (: name number))
        ((_ name pair?)          (: name pair))
-       ((_ name (check-pair-of? _ _)) (: name pair))
        ((_ name input-port?)    (: name input-port))
        ((_ name output-port?)   (: name output-port))
        ((_ name procedure?)     (: name procedure))
-       ((_ name (check-procedure-of? _ _)) (: name procedure))
        ((_ name rational?)      (: name ratnum))
        ((_ name string?)        (: name string))
        ((_ name symbol?)        (: name symbol))
        ((_ name keyword?)       (: name keyword))
        ((_ name vector?)        (: name vector))
-       ((_ name (check-vector-of? _)) (: name vector))
        ((_ name pointer?)       (: name pointer))
        ((_ name predicate)
         (when #f #f))))
@@ -256,7 +250,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
@@ -265,8 +258,6 @@
         (: name (arg-type ...) -> *))
        ((_ name (arg-type ...) (return-type ...))
         (: name (arg-type ... -> (return-type ...))))
-       ((_ name (arg-type ...) (return-type ...) check-any? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... *) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) fixnum? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... fixnum) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) flonum? other-returns ...)
@@ -289,23 +280,17 @@
         (%declare-checked-fn/return name (arg-type ...) (return-type ... number) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) list? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... list) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-list-of? _) other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... list) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) null? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... null) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) number? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... number) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) pair? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... pair) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-pair-of? _ _) other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... pair) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) input-port? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... input-port) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) output-port? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... output-port) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) procedure? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... procedure) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-procedure-of? _ _) other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... procedure) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) rational? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... ratnum) other-returns ...))
@@ -316,8 +301,6 @@
        ((_ name (arg-type ...) (return-type ...) keyword? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... keyword) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) vector? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... vector) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-vector-of? _) other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... vector) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) pointer? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... pointer) other-returns ...))
@@ -332,7 +315,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
