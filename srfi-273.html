@@ -198,7 +198,7 @@ SPDX-License-Identifier: MIT
 <p>
   This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
   Or argument / return checks for a procedure defined separately.
-  In the case of the procedure check declaration, all of the <var>args</var> should be checks applied to the given positional argument.
+  In the case of the procedure check declaration, argument checks are specified as either <code>(arg pred?)</code> (list of 2 elements) or <code>arg</code> (a single symbol,) like in <code>define-checked</code>
   Return value type checks, introduced by <code>=&gt;</code> symbol, are syntactically optional.
   They specify the checks for procedure return value(s) when provided.
 </p>
@@ -214,7 +214,7 @@ SPDX-License-Identifier: MIT
 
 <pre>
 ;; Declare checks for pre-existing standard functions
-(declare-checked (identity (x (constantly #t))) =&gt; ((constantly #t)))
+(declare-checked (identity x) =&gt; ((constantly #t)))
 
 ;; Declare the contract for a function before it is defined
 (declare-checked (numbered-string (str <a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a>) (idx <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>)) =&gt; (string?))
