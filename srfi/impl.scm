@@ -27,6 +27,11 @@
     ((_ name predicate)
      (define name predicate))))
 
+(define-syntax define-values-checked
+  (syntax-rules ()
+    ((_ (vars ...) (checks ...) form)
+     (define-values (vars ...) form))))
+
 (define (derive-check thing)
   #f)
 
