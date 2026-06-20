@@ -38,4 +38,8 @@
           check-procedure-of?
           check-any?)
   (import (scheme base))
+  (cond-expand
+    (chibi
+     (import (chibi ast)))
+    (else))
   (include "impl.scm"))
