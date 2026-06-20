@@ -36,9 +36,10 @@ SPDX-License-Identifier: MIT
       <li> <a href="#spec--return-value">Return value checking: (lambda-checked args [=&gt; predicate] body...), (case-lambda-checked ((args [=&gt; predicate] ...) body ...) ...), and (define-checked (name args ...) [=&gt; predicate] body ...)</a>
       <li> <a href="#spec--check-impl">auxiliary syntax (check-impl? datum)</a>
       <li> <a href="#spec--define-check">(define-check name predicate)</a>
-      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predica
+      <li> <a href="#spec--declare-checked">(declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; predicate])</a>
       <li> <a href="#spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</a>
-      <li> <a href="#spec--derive-check">(derive-check expression)</a>
+      <li> <a href="#spec--check-of">(check-of datum)</a>
+      <li> <a href="#spec--procedure-check-of">(procedure-check-of proc)</a>
       <li> <a href="#spec--check-patterns">Optimizable check patterns / combinators</a>
     </ol>
   </li>
@@ -54,7 +55,15 @@ SPDX-License-Identifier: MIT
   The original <a href="https://srfi.schemers.org/srfi-253/">SRFI 253</a> established a basis for type-checked (or otherwise checked) data handling.
   But it lacked some quality-of-life features.
   This SRFI extends SRFI 253 to match existing implementation practice and common sense.
-  Provided extensions are: check aliasing with <a href="#spec--define-check"><code>define-check</code></a>; pre- and post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>; <a href="#spec--return-value">return value checks</a> in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>; the <a href="#spec--derive-check"><code>derive-check</code></a> form to derive a suitable check for an expression; and some checking utilities.
+  Provided extensions are:
+  check aliasing with <a href="#spec--define-check"><code>define-check</code></a>;
+  pre- and post-declaration of type / check with <a href="#spec--declare-checked"><code>declare-checked</code></a>;
+  <a href="#spec--return-value">return value checks</a>
+  in <code>lambda-checked</code>, <code>case-lambda-checked</code>, and <code>define-checked</code>;
+  the <a href="#spec--check-of"><code>check-of</code></a>
+  and <a href="#spec--procedure-check-of"><code>procedure-check-of</code></a>
+  procedures to derive a suitable check for a datum / procedure;
+  and some optimizable checking patterns suggested to implementors.
 </p>
 
 <h2 id="issues">Issues</h2>
@@ -75,7 +84,6 @@ SPDX-License-Identifier: MIT
   <li> <code>define-checked</code> and the like did not allow return-value checking. This meant that compiled procedures lacked important metadata useful for optimization.
   <li> Implementations’ primitives to pre- and post-declare checks for an entity were not included in SRFI 253, despite being part of prior art.
   <li> In general, some implementation practice / APIs were woefully ignored.
-  <li> Little attention was paid to compile-time checking, despite that being a major point for compiled Schemes, like PreScheme or CRUNCH.
   <li> SRFI 253 focused on individual type-specific predicates, but lacked more general and composable notions, like union and intersection checks / types. While not many implementations have such involved types, supporting these can make programs faster and more correct on the supporting implementations.
 </ul>
 
@@ -92,8 +100,6 @@ SPDX-License-Identifier: MIT
   and to add quality-of-life features that are not present in implementations but are nonetheless a logical extension of SRFI 253 ethos.
   Thus it makes Scheme code with 253’s primitives even more optimizable, correct, and compliant.
   Backwards compatibility with SRFI 253 is an explicit priority, so all code written with SRFI 253 continues to work in implementations including this SRFI.
-  Some of the features in this SRFI are beyond the existing practice, and are marked as optional.
-  These are hidden behind <code>cond-expand</code> features for portability.
 </p>
 
 <p>
@@ -104,8 +110,9 @@ SPDX-License-Identifier: MIT
   <li> Return-value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> in procedure case.
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
-  <li> <code>declare-values-checked</code> to match the <code>define-checked</code> and <code>define</code> duality.
-  <li> <code>derive-check</code> primitive to derive a suitable check for a given expression. Expressions might be as complex as necessary, but there are no guarantees for check inference succeeding.
+  <li> <code>define-values-checked</code> to match the <code>define-checked</code>
+    and <a href="https://standards.scheme.org/r7rs-html5/index.html#define"><code>define</code></a> duality.
+  <li> Primitives to derive a suitable check for a given datum / procedure, <code>check-of</code> and <code>procedure-check-of</code>.
   <li> Smarter pattern optimization to enable e.g. union types.
 </ul>
 
@@ -133,7 +140,8 @@ SPDX-License-Identifier: MIT
 </p>
 
 <p>
-  Use of <code>=&gt;</code> for this might be seen as an unnecessary overload of an already overused symbol.
+  Use of <code>=&gt;</code> for this might be seen as an unnecessary overload of an
+  <a href="https://standards.scheme.org/r7rs-html5/index.html#=%3E">already overused symbol</a>.
   But this is the most minimal and recognizable choice of an operator.
   It is also similar in syntax to e.g. JavaScript arrow functions.
 </p>
@@ -153,16 +161,16 @@ SPDX-License-Identifier: MIT
 
 <pre>
 (values-checked ((check-impl? uint)) -1) ;; is an error
-(define-checked (ref (data (check-impl? pointer)) (idx integer?))
+(define-checked (ref (data (check-impl? pointer)) (idx <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>))
   (implementation-specific-ffi-pointer-ref data idx))
 </pre>
 
-<h3 id="spec--define-check">(srfi 273) (define-check name predicate)</h3>
+<h3 id="spec--define-check">(srfi 273) syntax (define-check name predicate)</h3>
 
 <!-- TODO: I doubt any implementation will actually infer types,
   -- and implementing this even for Chicken will be really hard.
   -- Is that worth the hustle?
-  -- Wait, Kawa can kinda infer types! -->
+  -->
 
 <p>
   This form defines a new <var>name</var>-d checking predicate based on the provided <var>predicate</var> (possibly evaluated).
@@ -178,19 +186,19 @@ SPDX-License-Identifier: MIT
 
 <pre>
 (define-check any? (constantly #t))
-(define-check email? string?)
-(define-check positive-integer? (conjoin integer? positive?))
+(define-check email? <a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a>)
+(define-check positive-integer? (conjoin <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#positive?">positive?</a>))
 
 (check-arg email? "srfi-273@example.com") ;; terminates normally
 (check-arg positive-integer? -3) ;; is an error
 </pre>
 
-<h3 id="spec--declare-checked">(srfi 273) (declare-checked name predicate) | (declare-checked (name (arg pred) ...) [=&gt; (predicate)])</h3>
+<h3 id="spec--declare-checked">(srfi 273) syntax (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
 
 <p>
   This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
   Or argument / return checks for a procedure defined separately.
-  In the case of the procedure check declaration, all of the <var>args</var> should be checks applied to the given positional argument.
+  In the case of the procedure check declaration, argument checks are specified as either <code>(arg pred?)</code> (list of 2 elements) or <code>arg</code> (a single symbol,) like in <code>define-checked</code>
   Return value type checks, introduced by <code>=&gt;</code> symbol, are syntactically optional.
   They specify the checks for procedure return value(s) when provided.
 </p>
@@ -206,15 +214,12 @@ SPDX-License-Identifier: MIT
 
 <pre>
 ;; Declare checks for pre-existing standard functions
-(declare-checked (identity (x (constantly #t))) => ((constantly #t)))
-
-;; Beware of using the rest argument with checks, see below
-(declare-checked (+ (first number?) . number?) => (number?))
+(declare-checked (identity x) =&gt; ((constantly #t)))
 
 ;; Declare the contract for a function before it is defined
-(declare-checked (numbered-string (str string?) (idx integer?)) => (string?))
+(declare-checked (numbered-string (str <a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a>) (idx <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>)) =&gt; (string?))
 (define (numbered-string str idx)
-  (string-append str (number-&gt;string idx)))
+  (<a href="https://standards.scheme.org/r7rs-html5/index.html#string-append">string-append</a> str (<a href="https://standards.scheme.org/r7rs-html5/index.html#number-%3Estring">number-&gt;string</a> idx)))
 </pre>
 
 <p>
@@ -224,94 +229,74 @@ SPDX-License-Identifier: MIT
   Without the need to consult procedure definition in addition to <code>declare-checked</code> signature.
 </p>
 
-<h3 id="spec--define-values-checked">(srfi 273) (define-values-checked (vars ...) (checks ...) form)</h3>
+<h3 id="spec--define-values-checked">(srfi 273) syntax (define-values-checked (vars ...) (checks ...) form)</h3>
 
 <p>
 Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
 Further symbol value modifications may be checked too.
 
-<h3 id="spec--derive-check">(srfi 273) (derive-check expression)</h3>
-
-<!-- TODO: Better name? -->
-
-<!-- TODO: Provide a version of it deriving type for data and not expression?
-  -- Would be nice to not have to do a check-case etch just to get data type.
-  -->
+<h3 id="spec--check-of">(srfi 273) procedure (check-of datum)</h3>
 
 <p>
-  This primitive should return the check matching the <var>expression</var> (implied to be a piece of code), or false, as an <code>eval</code>-uatable datum (quoted symbol or list),
-  possibly inferring the <var>expression</var> type.
-  Implementations may return false for any <var>expression</var>,
-  including in all cases.
-  This relaxed requirement is to support implementations that <em>never</em> check / infer / retain types of values.
+  Returns a check the provided <var>datum</var> satisfies, as a quoted symbol or expression.
+  Returns <code>#f</code> if the check cannot be derived.
+  The returned value should be <a href="https://standards.scheme.org/r7rs-html5/index.html#eval"><code>eval</code></a>-uatable in the current <a href="https://standards.scheme.org/r7rs-html5/index.html#interaction-environment"><code>(interaction-environment)</code></a> to get the check procedure that the <var>datum</var> satisfies.
+  The precision to which the check is derived is not specified.
 </p>
 
 <p>
-  It is not recommended that implementations <code>eval</code> the <var>expression</var> or any of its parts.
-  But, if they do so, they must manage mutable state, lexical/dynamic environment, and other implications of <var>expression</var> evaluation
-  so as to avoid surprising the programmer using <code>derive-check</code>.
+  Conceptually similar to <code>type-of</code> and <code>typeof</code> of other languages
+  and type-fetching primitives of some Scheme implementations.
 </p>
-
-<p>
-  <code>derive-check</code> is probably most useful in <code>syntax-case</code> (and other non-hygienic / procedural) macros because it
-  allows one to dispatch the behavior based on the type of macro arguments.
-  While <a href="https://srfi.schemers.org/srfi-253/srfi-253.html#spec--check-case">SRFI 253 check-case</a> might be used for simple cases of constant arguments, it’s insufficient for arbitrary forms.
-  Thus <code>derive-check</code>.
-</p>
-
-<p>
-  The behavior of <code>derive-check</code> on certain types needs further deliberation:
-</p>
-
-<dl>
-  <dt> Literals and primitive data (numbers, strings, characters, booleans, null lists, EOF objects) </dt>
-  <dd> Respective predicate, as a quoted symbol. Some more exact predicates (narrowed number types and the like) might be returned. </dd>
-  <dt> More complex data (bytevectors, ports, other relatively opaque / boxed / single-purpose structures) </dt>
-  <dd> Respective predicate, as a quoted symbol </dd>
-  <dt> Procedures </dt>
-  <dd> <a href="#spec--check-utils--check-procedure-of"><code>check-procedure-of?</code></a> or <code>procedure?</code>, depending on sophistication of check inference in the implementation </dd>
-  <dt> Vectors </dt>
-  <dd> <a href="#spec--check-utils--check-sequence-of"><code>check-vector-of?</code></a> predicate or <code>vector?</code> for vectors </dd>
-  <dt> Other implementation-specific collections </dt>
-  <dd> Implementation-specific checks </dd>
-  <dt> Lists or quoted symbols </dt>
-  <dd> Type of the code expressed by the argument. <strong>Important: does not return <a href="#spec--check-utils--check-sequence-of"><code>check-list-of?</code></a>!</strong> <code>derive-check</code> is intended for deriving the check for expression-representing code, not for the type of expression itself. It just so happens that it returns the respective predicate for more primitive data above, because they usually represent themselves (automatically quoted) in the code. </dd>
-</dl>
 
 <pre>
 ;; Any of these might return #f and still be compliant
-(derive-check 3)
-;; => integer? or number? or exact? or exact-integer?
-
-(derive-check '(+ 1 1.333))
-;; => number? or inexact?
-
-;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
-(derive-check '(numbered-string "a" 1))
-;; => string?
-(derive-check 'numbered-string)
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list string?) (list number?))
-
-(derive-check +) ;; or (derive-check '+)
-;; Note that rest pattern in check-procedure-of? is not entirely portable
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list* number? number?) (list number?))
-
-(derive-check '(let ((a 3)) a))
-;; integer? or possibly bailout #f due to expression complexity
-
-(derive-check derive-check)
-;; => (<a href="#spec--check-utils--check-procedure-of">check-procedure-of?</a> (list (constantly #t)) (list (disjoin symbol? pair?)))
+(check-of 3)
+;; =&gt; integer? or number? or exact? or exact-integer?
+(define-checked x (<a href="https://srfi.schemers.org/srfi-26/srfi-26.html">cut</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#=">=</a> 3 &lt;&gt;) 3)
+(check-of x)
+;; =&gt; (cut = 3 &lt;&gt;) or number checks as above
 </pre>
 
+<h3 id="spec--procedure-check-of">(srfi 273) procedure (procedure-check-of proc)</h3>
+
 <p>
-  Implementations—especially compiled and/or statically typed—may restrict check return guarantees to previously compiled / loaded libraries / files and not the current library / file.
+  Accepts a procedure (as per <code>procedure?</code>)
+  Returns two values:
+</p>
+
+<ol>
+  <li> List of checks for arguments of <var>proc</var> as expressions / symbols / <code>#f</code> (if argument check cannot be determined.)
+    In case the procedure accepts rest arguments, the returned checks are only covering required arguments.
+    Checking for rest / optional argument presence is beyond this SRFI.
+  <li> List of checks for return values of <var>proc</var>.
+</ol>
+
+<p>
+  Either of lists can be <code>#f</code>.
 </p>
 
 <p>
-  Earlier version of this SRFI included value-checking auxiliary syntax in <code>syntax-rules</code>,
-  but it was removed as overly expansive and not fitting the minimalist spirit of <code>syntax-rules</code>.
-  Using <code>syntax-case</code> and <code>derive-check</code> for macroexpansion-time check fetching is more suitable for this.
+  Like in <a href="#spec--check-of">check-of</a>,
+  each expression in either list should be <a href="https://standards.scheme.org/r7rs-html5/index.html#eval"><code>eval</code></a>-uatable in the current <a href="https://standards.scheme.org/r7rs-html5/index.html#interaction-environment"><code>(interaction-environment)</code></a>.
 </p>
+
+<pre>
+;; Example <a href="#spec--declare-checked">numbered-string function from before</a>
+(procedure-check-of numbered-string)
+;; =&gt; (<a href="https://standards.scheme.org/r7rs-html5/index.html#string?">string?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#integer?">integer?</a>), (string?)
+
+(procedure-check-of +)
+;; Rest argument not included
+;; =&gt; (), (<a href="https://standards.scheme.org/r7rs-html5/index.html#number?">number?</a>)
+
+(procedure-check-of <a href="https://standards.scheme.org/r7rs-html5/index.html#eval">eval</a>)
+;; Rest argument is ignored, fetch it elsewhere
+;; =&gt; ((constantly #t) (constantly #t)), ((constantly #t))
+
+(procedure-check-of procedure-check-of)
+;; (<a href="https://standards.scheme.org/r7rs-html5/index.html#procedure?">procedure?</a>), ((disjoin <a href="https://standards.scheme.org/r7rs-html5/index.html#boolean?">boolean?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#symbol?">symbol?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#pair?">pair?</a>) (disjoin boolean? symbol? pair?))
+</pre>
 
 <h3 id="spec--check-patterns">Optimizable check patterns / combinators</h3>
 
@@ -331,9 +316,9 @@ Further symbol value modifications may be checked too.
 </p>
 
 <pre>
-(lambda (x) (and (integer? x) (positive? x)))
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#lambda">lambda</a> (x) (<a href="https://standards.scheme.org/r7rs-html5/index.html#and">and</a> (integer? x) (positive? x)))
 ;; === (conjoin integer? positive?)
-(lambda (x) (not (integer? x)))
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#lambda">lambda</a> (x) (<a href="https://standards.scheme.org/r7rs-html5/index.html#not">not</a> (integer? x)))
 ;; === (complement integer?)
 </pre>
 
@@ -361,7 +346,7 @@ Further symbol value modifications may be checked too.
   Not check/type.
 </p>
 
-<h4 id="spec--check-patterns--member">(srfi 26 + r7rs) (cut memv <> '(items ...)) or (cut memv <> (list items ...))</h4>
+<h4 id="spec--check-patterns--member">(srfi 26 + r7rs) (cut memv &lt;&gt; '(items ...)) or (cut memv &lt;&gt; (list items ...))</h4>
 
 <p>
   Member check/type against constants.
@@ -369,25 +354,25 @@ Further symbol value modifications may be checked too.
   unlike more involved and non-optimizable <code>member</code>.
 </p>
 
-<h4 id="spec--check-patterns--equal">(srfi 26 + r7rs) (cut eq constant)</h4>
+<h4 id="spec--check-patterns--equal">(srfi 26 + r7rs) (cut eqv? constant)</h4>
 
 <p>
   Single-member check/type.
 </p>
 
-<h4 id="spec--check-patterns--list-of">(srfi 26 + srfi 1) (cut every pred <>)</h4>
+<h4 id="spec--check-patterns--list-of">(srfi 26 + srfi 1) (cut every pred &lt;&gt;)</h4>
 
 <p>
   List-of check.
 </p>
 
-<h4 id="spec--check-patterns--vector-of">(srfi 26 + srfi 43) (cut vector-every pred <>)</h4>
+<h4 id="spec--check-patterns--vector-of">(srfi 26 + srfi 43) (cut vector-every pred &lt;&gt;)</h4>
 
 <p>
   Vector-of check.
 </p>
 
-<h4 id="spec--check-patterns--any">(srfi 235) (constantly #t) and (constantly #f)</h4>
+<h4 id="spec--check-patterns--any-none">(srfi 235) (constantly #t) and (constantly #f)</h4>
 
 <p>
   Top/any check/type; and bottom/none check/type respectively.
@@ -409,42 +394,46 @@ Further symbol value modifications may be checked too.
 </p>
 
 <pre>
-(define-syntax define-check
-  (syntax-rules ()
+(<a href="https://standards.scheme.org/r7rs-html5/index.html#define-syntax">define-syntax</a> <a href="#spec--define-check">define-check</a>
+  (<a href="https://standards.scheme.org/r7rs-html5/index.html#syntax-rules">syntax-rules</a> ()
     ((_ name predicate)
-     (define name predicate))))
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#define">define</a> name predicate))))
 (define-syntax define-values-checked
   (syntax-rules ()
     ((_ (vars ...) (checks ...) form)
-     (define-values (vars ...) form))))
-(define (derive-check thing)
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#define-values">define-values</a> (vars ...) form))))
+(define (<a href="#spec--check-of">check-of</a> datum)
   #f)
-(define-syntax declare-checked
-  (syntax-rules (=>)
+(define (<a href="#spec--procedure-check-of">procedure-check-of</a> proc)
+  (values #f #f))
+(define-syntax <a href="#spec--declare-checked">declare-checked</a>
+  (syntax-rules (=&gt;)
     ((_ name predicate)
-     (when #f #f))
+     (<a href="https://standards.scheme.org/r7rs-html5/index.html#when">when</a> #f #f))
     ((_ (name . args))
      (when #f #f))
-    ((_ (name . args) => return)
+    ((_ (name . args) =&gt; return)
      (when #f #f))))
 </pre>
-
-<p>
-  <code>check-*?</code> predicates are trivial to implement, but need a discussion.
-  Thus the implementation is postponed until further drafts.
-</p>
 
 <h2 id="acknowledgements">Acknowledgements</h2>
 
 <p>
   Thanks to Yukari Hafner for working on <code>trivial-arguments</code> Common Lisp library,
   where the author of this SRFI have contributed function type inspection,
-  inspiring <a href="#spec--derive-check"><code>derive-check</code></a>.
+  inspiring <a href="#spec--procedure-check-of">procedure-check-of</a>.
 </p>
 
 <p>
   Thanks also to Felix Winkelmann for working on CRUNCH compiler,
   during the use of which the need for type-checking macros manifested.
+</p>
+
+<p>
+  Thanks to John Cowan and Peter McGoron for the discussion on better
+  <a href="#spec--procedure-check-of">procedure-check-of</a>
+  and <a href="#spec--check-of">check-of</a>
+  (previously <code>derive-check</code>) design.
 </p>
 
 <h2 id="copyright">Copyright</h2>

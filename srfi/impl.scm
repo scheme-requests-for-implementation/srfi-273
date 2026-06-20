@@ -32,8 +32,165 @@
     ((_ (vars ...) (checks ...) form)
      (define-values (vars ...) form))))
 
-(define (derive-check thing)
-  #f)
+(define (check-of datum)
+  (cond
+   ((boolean? datum) 'boolean?)
+   ((bytevector? datum) 'bytevector?)
+   ((char? datum) 'char?)
+   ((eof-object? datum) 'eof-object?)
+   ((null? datum) 'null?)
+   ((integer? datum) 'integer?)
+   ((rational? datum) 'rational?)
+   ((real? datum) 'real?)
+   ((complex? datum) 'complex?)
+   ((number? datum) 'number?)
+   ((pair? datum) 'pair?)
+   ((input-port? datum) 'input-port?)
+   ((output-port? datum) 'output-port?)
+   ((port? datum) 'port?)
+   ((procedure? datum) 'procedure?)
+   ((string? datum) 'string?)
+   ((symbol? datum) 'symbol?)
+   ((vector? datum) 'vector?)
+   ((error-object? datum) 'error-object?)
+   (else #f)))
+
+(cond-expand
+  (kawa
+   (define (get-arg-num proc :: procedure)
+     (let* ((numArgs (proc:numArgs))
+            (rest? (negative? numArgs)))
+       (values (bitwise-and numArgs #b11111111111) rest?)))
+
+   (define (get-arg-types proc :: procedure)
+     (let-values (((num rest?) (get-arg-num proc)))
+       (let rec ((param 0))
+         (cond
+          ((and (= param num) rest?)
+           (proc:getParameterType param))
+          ((= param num)
+           '())
+          (else
+           (cons (proc:getParameterType param) (rec (+ 1 param))))))))
+
+   (define (get-check type)
+     (let* ((name ((type:toString):replace "ClassType " ""))
+            (name (name:replace "Type " "")))
+       ;; TODO: Parameters
+       (cond
+        ((equal? name "gnu.mapping.Symbol") 'symbol?)
+        ((equal? name "gnu.expr.Keyword") 'keyword?)
+        ((equal? name "list") 'list?)
+        ;; TODO: Pair?
+        ((equal? name "java.lang.CharSequence") 'string?)
+        ((equal? name "character") 'character?)
+        ((equal? name "vector") 'vector?)
+        ((equal? name "gnu.mapping.Procedure") 'procedure?)
+        ((equal? name "java.io.Reader") 'input-port?)
+        ((equal? name "java.io.Writer") 'input-port?)
+        ((equal? name "gnu.lists.Array") 'array?)
+        ((equal? name "java.lang.Number") 'number?)
+        ((equal? name "java.io.Closeable") 'port?)
+        ((equal? name "gnu.math.Complex") 'complex?)
+        ((equal? name "gnu.math.Quantity") 'quantity?)
+        ((member name '("real" "rational" "integer"
+                        "long" "int" "short" "byte"
+                        "ulong" "uint" "ushort" "ubyte"
+                        "double" "float"))
+         (string->symbol (string-append name "?")))
+        (else #f))))
+
+   (define (get-arg-checks proc :: procedure)
+     (case (if proc:name
+               (string->symbol proc:name)
+               #f)
+       ((+ * - /)
+        '())
+       ((apply)
+        '(procedure?))
+       ((array-ref)
+        '(array?))
+       ((array-set!)
+        '(array?))
+       ((bitwise-and bitwise-ior bitwise-xor)
+        '())
+       ((bitwise-arithmetic-shift bitwise-arithmetic-shift-left bitwise-arithmetic-shift-right)
+        '(integer? integer?))
+       ((bitwise-not) '(integer?))
+       ((call-with-current-continuation call/cc)
+        '(procedure?))
+       ((call-with-values)
+        '(procedure? procedure?))
+       ((format)
+        '((disjoin boolean? string? number? output-port?)))
+       ((floor/ floor-quotient floor-remainder
+                truncate/ truncate-quotient truncate-remainder
+                quotinent remainder
+                div mod modulo div0 mod0)
+        '(integer? integer?))
+       ((expt)
+        '(complex? complex?))
+       ((eq? eqv? equal?)
+        '(#f #f))
+       ((list)
+        '())
+       ((make-procedure)
+        '())
+       ((map for-each)
+        '(procedure? list?))
+       ((> = < >= <=)
+        '(number? number?))
+       ((run-process)
+        '())
+       ((even? odd?)
+        '(integer?))
+       (else
+        (let ((types (get-arg-types proc)))
+          (let rec ((types types))
+            (cond
+             ((pair? types)
+              (cons (get-check (car types))
+                    (rec (cdr types))))
+             ((null? types)
+              '())
+             (else (get-check types))))))))
+
+   (define (procedure-check-of proc :: procedure)
+     (values (get-arg-checks proc) #f)))
+  (chibi
+   (define (type->predicate type)
+     (case (string->symbol (type-name type))
+       ((Number) 'number?)
+       ((Bignum Integer) 'integer?)
+       ((Flonum) 'inexact?)
+       ((Ratio) 'rational?)
+       ((Complex) 'complex?)
+       ((Symbol) 'symbol?)
+       ((Char) 'char?)
+       ((Boolean) 'boolean?)
+       ((String) 'string?)
+       ((Byte-Vector) 'bytevector?)
+       ((Pair) 'pair?)
+       ((Vector) 'vector?)
+       ((Input-Port) 'input-port?)
+       ((Output-Port) 'output-port?)
+       ((Opcode) 'procedure?)
+       (else #f)))
+   (define (opcode-check-of opcode)
+     (values
+      (let loop ((idx 0))
+        (if (= (opcode-num-params opcode) idx)
+            '()
+            (cons (type->predicate (opcode-param-type opcode idx))
+                  (loop (+ 1 idx)))))
+      (list (type->predicate (opcode-return-type opcode)))))
+   (define (procedure-check-of proc)
+     (if (opcode? proc)
+         (opcode-check-of proc)
+         (values #f #f))))
+  (else
+   (define (procedure-check-of proc)
+     (values #f #f))))
 
 (cond-expand
   (chicken
@@ -54,7 +211,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
@@ -71,22 +227,17 @@
        ((_ name inexact?)       (: name float))
        ((_ name real?)          (: name number))
        ((_ name list?)          (: name list))
-       ((_ name (check-list-of? _)) (: name list))
-       ((_ name (check-list-of? _ _)) (: name list))
        ((_ name null?)          (: name null))
        ((_ name number?)        (: name number))
        ((_ name pair?)          (: name pair))
-       ((_ name (check-pair-of? _ _)) (: name pair))
        ((_ name input-port?)    (: name input-port))
        ((_ name output-port?)   (: name output-port))
        ((_ name procedure?)     (: name procedure))
-       ((_ name (check-procedure-of? _ _)) (: name procedure))
        ((_ name rational?)      (: name ratnum))
        ((_ name string?)        (: name string))
        ((_ name symbol?)        (: name symbol))
        ((_ name keyword?)       (: name keyword))
        ((_ name vector?)        (: name vector))
-       ((_ name (check-vector-of? _)) (: name vector))
        ((_ name pointer?)       (: name pointer))
        ((_ name predicate)
         (when #f #f))))
@@ -99,7 +250,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
@@ -108,8 +258,6 @@
         (: name (arg-type ...) -> *))
        ((_ name (arg-type ...) (return-type ...))
         (: name (arg-type ... -> (return-type ...))))
-       ((_ name (arg-type ...) (return-type ...) check-any? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... *) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) fixnum? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... fixnum) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) flonum? other-returns ...)
@@ -132,23 +280,17 @@
         (%declare-checked-fn/return name (arg-type ...) (return-type ... number) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) list? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... list) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-list-of? _) other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... list) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) null? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... null) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) number? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... number) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) pair? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... pair) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-pair-of? _ _) other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... pair) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) input-port? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... input-port) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) output-port? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... output-port) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) procedure? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... procedure) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-procedure-of? _ _) other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... procedure) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) rational? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... ratnum) other-returns ...))
@@ -159,8 +301,6 @@
        ((_ name (arg-type ...) (return-type ...) keyword? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... keyword) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) vector? other-returns ...)
-        (%declare-checked-fn/return name (arg-type ...) (return-type ... vector) other-returns ...))
-       ((_ name (arg-type ...) (return-type ...) (check-vector-of? _) other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... vector) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) pointer? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... pointer) other-returns ...))
@@ -175,7 +315,6 @@
                       input-port? output-port?
                       procedure? rational?
                       string? symbol? keyword? vector? pointer?
-                      check-any? check-list-of? check-vector-of? check-pair-of? check-procedure-of?
 
                       integer boolean char cplxnum eof fixnum float
                       number list null number pair input-port output-port
