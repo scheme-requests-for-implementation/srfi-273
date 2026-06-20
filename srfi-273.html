@@ -110,7 +110,7 @@ SPDX-License-Identifier: MIT
   <li> Return-value checking for <code>lambda-checked</code>, <code>case-lambda-checked</code> (whenever available), and <code>define-checked</code> in procedure case.
   <li> Check aliasing/definition with <code>define-check</code>.
   <li> <code>declare-checked</code> syntax for pre-definition / post-definition / declaration of checks for a given procedure/variable. Matches Chicken Scheme <code>:</code> syntax and Common Lisp <code>declaim ftype</code> macro.
-  <li> <code>declare-values-checked</code> to match the <code>define-checked</code>
+  <li> <code>define-values-checked</code> to match the <code>define-checked</code>
     and <a href="https://standards.scheme.org/r7rs-html5/index.html#define"><code>define</code></a> duality.
   <li> Primitives to derive a suitable check for a given expression, <code>check-of</code> and <code>procedure-check-of</code>.
   <li> Smarter pattern optimization to enable e.g. union types.
