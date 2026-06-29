@@ -120,7 +120,7 @@ SPDX-License-Identifier: MIT
 
 <h2 id="specification">Specification</h2>
 
-<h3 id="spec--return-value">Return value(s) checking: (srfi 253) (lambda-checked args [=&gt; (predicate ...)] body...), (case-lambda-checked (args [=&gt; (predicate ...)] body ...) ...), and (define-checked (name args ...) [=&gt; (predicate ...)] body ...)</h3>
+<h3 id="spec--return-value">Return value(s) checking: (srfi 253) (lambda-checked args [=&gt; (predicate ...)] body...), (case-lambda-checked (args [=&gt; (predicate ...)] body ...) ...), and (define-checked (name args ...) [=&gt; (predicate ...)] body ...) <a href="#spec--return-value">#</a></h3>
 
 <p>
   SRFI 253 included a way to specify argument checks for procedures via <code>lambda-checked</code> and the like.
@@ -148,7 +148,7 @@ SPDX-License-Identifier: MIT
   It is also similar in syntax to e.g. JavaScript arrow functions.
 </p>
 
-<h3 id="spec--check-impl">auxiliary syntax (check-impl? datum)</h3>
+<h3 id="spec--check-impl">auxiliary syntax (check-impl? datum) <a href="#spec--check-impl">#</a></h3>
 
 <p>
   This form, when used in either of SRFI 253 or this SRFI primitives, passes the <var>datum</var> to the implementation unaltered.
@@ -167,7 +167,7 @@ SPDX-License-Identifier: MIT
   (implementation-specific-ffi-pointer-ref data idx))
 </pre>
 
-<h3 id="spec--define-check">(srfi 273) syntax (define-check name predicate)</h3>
+<h3 id="spec--define-check">(srfi 273) syntax (define-check name predicate) <a href="#spec--define-check">#</a></h3>
 
 <!-- TODO: I doubt any implementation will actually infer types,
   -- and implementing this even for Chicken will be really hard.
@@ -195,7 +195,7 @@ SPDX-License-Identifier: MIT
 (check-arg positive-integer? -3) ;; is an error
 </pre>
 
-<h3 id="spec--declare-checked">(srfi 273) syntax (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)])</h3>
+<h3 id="spec--declare-checked">(srfi 273) syntax (declare-checked name predicate) | (declare-checked (name args ...) [=&gt; (predicate)]) <a href="#spec--declare-checked">#</a></h3>
 
 <p>
   This syntax declares checks for a given value (in the first form) before / after the value itself was bound to a <var>name</var>.
@@ -231,13 +231,13 @@ SPDX-License-Identifier: MIT
   Without the need to consult procedure definition in addition to <code>declare-checked</code> signature.
 </p>
 
-<h3 id="spec--define-values-checked">(srfi 273) syntax (define-values-checked (vars ...) (checks ...) form)</h3>
+<h3 id="spec--define-values-checked">(srfi 273) syntax (define-values-checked (vars ...) (checks ...) form) <a href="#spec--define-values-checked">#</a></h3>
 
 <p>
 Same as <code>define-values</code>, but makes sure the values returned by <var>form</var> abide by <var>checks</var>.
 Further symbol value modifications may be checked too.
 
-<h3 id="spec--check-of">(srfi 273) procedure (check-of datum)</h3>
+<h3 id="spec--check-of">(srfi 273) procedure (check-of datum) <a href="#spec--check-of">#</a></h3>
 
 <p>
   Returns a check the provided <var>datum</var> satisfies, as a quoted symbol or expression.
@@ -260,7 +260,7 @@ Further symbol value modifications may be checked too.
 ;; =&gt; (cut = 3 &lt;&gt;) or number checks as above
 </pre>
 
-<h3 id="spec--procedure-check-of">(srfi 273) procedure (procedure-check-of proc)</h3>
+<h3 id="spec--procedure-check-of">(srfi 273) procedure (procedure-check-of proc) <a href="#spec--procedure-check-of">#</a></h3>
 
 <p>
   Accepts a procedure (as per <code>procedure?</code>)
@@ -300,7 +300,7 @@ Further symbol value modifications may be checked too.
 ;; (<a href="https://standards.scheme.org/r7rs-html5/index.html#procedure?">procedure?</a>), ((disjoin <a href="https://standards.scheme.org/r7rs-html5/index.html#boolean?">boolean?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#symbol?">symbol?</a> <a href="https://standards.scheme.org/r7rs-html5/index.html#pair?">pair?</a>) (disjoin boolean? symbol? pair?))
 </pre>
 
-<h3 id="spec--check-patterns">Optimizable check patterns / combinators</h3>
+<h3 id="spec--check-patterns">Optimizable check patterns / combinators <a href="#spec--check-patterns">#</a></h3>
 
 <p>
   While SRFI 253 established behaviors for primitive/built-in types,
