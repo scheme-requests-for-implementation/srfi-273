@@ -30,10 +30,9 @@
 (define-syntax define-values-checked
   (syntax-rules ()
     ((_ (var ...) (check ...) form)
-     (begin
-       (define-values (var ...) form)
-       (check-arg check var 'define-values)
-       ...))))
+     (define-values (var ...)
+       (let-values (((var ...) form))
+         (values-checked (check ...) var ...))))))
 
 (cond-expand
   (chicken
