@@ -100,7 +100,7 @@
        ((_ name (arg-type ...) ())
         (: name (arg-type ...) -> *))
        ((_ name (arg-type ...) (return-type ...))
-        (: name (arg-type ... -> (return-type ...))))
+        (: name (arg-type ... -> return-type ...)))
        ((_ name (arg-type ...) (return-type ...) fixnum? other-returns ...)
         (%declare-checked-fn/return name (arg-type ...) (return-type ... fixnum) other-returns ...))
        ((_ name (arg-type ...) (return-type ...) flonum? other-returns ...)
